@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeekInTheCloud - Demo & Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        h1 {
+            color: #2563eb;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #f8fafc;
+        }
+        .demo-section h2 {
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .feature-card h3 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .btn {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 10px 5px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        .btn-secondary {
+            background: #64748b;
+        }
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 PeekInTheCloud - Demo & Documentation</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This tool is for educational and authorized security testing purposes only. 
+            Only use it on credentials and infrastructure that you have permission to test.
+        </div>
+
+        <div class="demo-section">
+            <h2>🎯 What is PeekInTheCloud?</h2>
+            <p>
+                PeekInTheCloud is a privacy-preserving, browser-based tool that helps you analyze cloud credentials 
+                and visualize accessible services. All processing happens in your browser - no credentials are sent to any server.
+            </p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🔐 Security-First</h3>
+                    <p>Client-side processing only. No credential storage or transmission to external servers.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>☁️ Multi-Cloud Support</h3>
+                    <p>Supports AWS, Azure, and GCP with comprehensive service scanning.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Visual Results</h3>
+                    <p>Clean, modern interface showing accessible services with detailed permissions.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📤 Export Capabilities</h3>
+                    <p>Copy results to clipboard or download JSON for further analysis.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🚀 Quick Start</h2>
+            <p>Get started with PeekInTheCloud in just a few steps:</p>
+            
+            <ol>
+                <li><strong>Open the application:</strong> Click the button below to launch PeekInTheCloud</li>
+                <li><strong>Select a cloud provider:</strong> Choose from AWS, Azure, or GCP</li>
+                <li><strong>Enter credentials:</strong> Fill in the required fields for your chosen provider</li>
+                <li><strong>Scan services:</strong> Click "Scan Credentials" to analyze accessible services</li>
+                <li><strong>Review results:</strong> View the visual grid of accessible services</li>
+            </ol>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="index.html" class="btn">🚀 Launch PeekInTheCloud</a>
+                <a href="README.md" class="btn btn-secondary">📖 View Full Documentation</a>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📋 Supported Cloud Providers</h2>
+            
+            <h3>Amazon Web Services (AWS)</h3>
+            <p><strong>Required:</strong> Access Key ID, Secret Access Key, Region</p>
+            <p><strong>Services:</strong> S3, EC2, IAM, STS, Lambda</p>
+            
+            <h3>Microsoft Azure</h3>
+            <p><strong>Required:</strong> Client ID, Client Secret, Tenant ID</p>
+            <p><strong>Services:</strong> Resource Groups, Virtual Machines, Blob Storage, App Services</p>
+            
+            <h3>Google Cloud Platform (GCP)</h3>
+            <p><strong>Required:</strong> Service Account JSON</p>
+            <p><strong>Services:</strong> Compute Engine, Cloud Storage, IAM, Cloud Functions</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>🔧 Technical Details</h2>
+            
+            <h3>Architecture</h3>
+            <ul>
+                <li><strong>Frontend:</strong> HTML5, CSS3, Vanilla JavaScript (ES6+)</li>
+                <li><strong>Cloud SDKs:</strong> AWS SDK v3, Azure MSAL, Google Cloud SDK</li>
+                <li><strong>CDN:</strong> unpkg.com for SDK imports</li>
+                <li><strong>Storage:</strong> localStorage for optional profile saving</li>
+            </ul>
+            
+            <h3>Browser Compatibility</h3>
+            <ul>
+                <li>Chrome 80+</li>
+                <li>Firefox 75+</li>
+                <li>Safari 13+</li>
+                <li>Edge 80+</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h2>🛡️ Security Features</h2>
+            
+            <div class="success">
+                <strong>✅ Client-Side Processing:</strong> All credential processing happens in your browser
+            </div>
+            
+            <div class="success">
+                <strong>✅ No Credential Storage:</strong> Credentials are not saved or logged
+            </div>
+            
+            <div class="success">
+                <strong>✅ Network Security:</strong> HTTPS required for cloud API calls
+            </div>
+            
+            <div class="success">
+                <strong>✅ Input Validation:</strong> Real-time credential format validation
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📊 Understanding Results</h2>
+            
+            <h3>Service Status</h3>
+            <ul>
+                <li><strong>Accessible:</strong> Service is available and accessible</li>
+                <li><strong>Inaccessible:</strong> Service exists but access is denied</li>
+                <li><strong>Error:</strong> Network or authentication issues</li>
+            </ul>
+            
+            <h3>Permission Levels</h3>
+            <ul>
+                <li><strong>No Access:</strong> Cannot access the service</li>
+                <li><strong>List Only:</strong> Can list resources but not read details</li>
+                <li><strong>Read Access:</strong> Can read resource details</li>
+                <li><strong>Write Access:</strong> Can modify resources</li>
+                <li><strong>Full Access:</strong> Complete control over resources</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h2>🔄 Export Options</h2>
+            
+            <h3>Copy to Clipboard</h3>
+            <p>Copy scan results as formatted JSON for easy sharing or analysis.</p>
+            
+            <h3>Download JSON</h3>
+            <p>Download complete scan results with filename including provider and date.</p>
+            
+            <div class="code-block">
+// Example exported JSON structure
+{
+  "s3": {
+    "status": "accessible",
+    "accessible": true,
+    "permission": "read",
+    "resources": ["my-bucket", "backup-bucket"],
+    "apiCalls": ["ListBuckets", "ListObjectsV2", "GetObject"]
+  },
+  "ec2": {
+    "status": "accessible", 
+    "accessible": true,
+    "permission": "read",
+    "resources": ["i-1234567890abcdef0 (t3.micro)"],
+    "apiCalls": ["DescribeInstances"]
+  }
+}
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🛠️ Troubleshooting</h2>
+            
+            <h3>Common Issues</h3>
+            <ul>
+                <li><strong>"SDK not loaded":</strong> Check internet connection and refresh the page</li>
+                <li><strong>"Invalid credentials":</strong> Verify credential format and required fields</li>
+                <li><strong>"Network error":</strong> Check internet connectivity and firewall settings</li>
+                <li><strong>"Access denied":</strong> Verify credentials are correct and haven't expired</li>
+            </ul>
+            
+            <h3>Browser Console</h3>
+            <p>Open browser developer tools (F12) to see detailed error messages and API call logs.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>📄 Project Files</h2>
+            
+            <div class="code-block">
+cloudpeep/
+├── index.html              # Main application
+├── style.css              # Styling and responsive design  
+├── main.js                # Core application logic
+├── utils.js               # Utility functions
+├── services.js            # Service metadata
+├── cloud/
+│   ├── aws.js            # AWS service scanner
+│   ├── azure.js          # Azure service scanner
+│   └── gcp.js            # GCP service scanner
+├── icons/
+│   └── favicon.svg       # Application icon
+├── README.md             # Comprehensive documentation
+├── LICENSE               # MIT License
+└── demo.html             # This demo page
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="index.html" class="btn">🚀 Launch PeekInTheCloud Now</a>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #64748b;">
+            <p><strong>Built with ❤️ for the security community</strong></p>
+            <p>MIT License - Educational and authorized security testing purposes only</p>
+        </div>
+    </div>
+</body>
+</html> 
