@@ -140,6 +140,114 @@ class PeekInTheCloud {
         if (statusMessage) statusMessage.textContent = message;
     }
 
+    /**
+     * Check for honeytoken/canary tokens
+     * @param {string} provider - Cloud provider
+     * @param {Object} credentials - Credentials to check
+     * @returns {Object} Detection result
+     */
+    checkForHoneytoken(provider, credentials) {
+        if (provider === 'aws') {
+            return Utils.HoneytokenUtils.detectHoneytoken(credentials);
+        }
+        return { isHoneytoken: false, type: null, accountId: null };
+    }
+
+    /**
+     * Show honeytoken warning modal
+     * @param {Object} honeytokenInfo - Honeytoken detection result
+     * @param {Function} onProceed - Callback when user chooses to proceed
+     * @param {Function} onCancel - Callback when user chooses to cancel
+     */
+    showHoneytokenWarning(honeytokenInfo, onProceed, onCancel) {
+        const modal = document.getElementById('honeytokenModal');
+        const canaryType = document.getElementById('canary-type');
+        const accountId = document.getElementById('canary-account-id');
+        const message = document.getElementById('canary-message');
+        const proceedBtn = document.getElementById('proceedHoneytokenScan');
+        const cancelBtn = document.getElementById('cancelHoneytokenScan');
+
+        // Update modal content
+        if (honeytokenInfo.type === 'thinkst') {
+            canaryType.textContent = 'Thinkst Canary (canarytokens.org)';
+        } else if (honeytokenInfo.type === 'thinkstKnockoffs') {
+            canaryType.textContent = 'Off-brand Canary Token';
+        } else {
+            canaryType.textContent = 'Unknown Canary Token';
+        }
+
+        accountId.textContent = honeytokenInfo.accountId;
+        message.textContent = honeytokenInfo.message;
+
+        // Set up event listeners
+        const handleProceed = () => {
+            modal.classList.add('hidden');
+            proceedBtn.removeEventListener('click', handleProceed);
+            cancelBtn.removeEventListener('click', handleCancel);
+            onProceed();
+        };
+
+        const handleCancel = () => {
+            modal.classList.add('hidden');
+            proceedBtn.removeEventListener('click', handleProceed);
+            cancelBtn.removeEventListener('click', handleCancel);
+            onCancel();
+        };
+
+        proceedBtn.addEventListener('click', handleProceed);
+        cancelBtn.addEventListener('click', handleCancel);
+
+        // Show modal
+        modal.classList.remove('hidden');
+    }
+
+    /**
+     * Add honeytoken warning banner to results
+     * @param {string} provider - Cloud provider
+     * @param {Object} honeytokenInfo - Honeytoken detection result
+     */
+    addHoneytokenBanner(provider, honeytokenInfo) {
+        const resultsContainer = document.getElementById('scan-results');
+        if (!resultsContainer) return;
+
+        const banner = document.createElement('div');
+        banner.className = 'honeytoken-banner';
+        banner.innerHTML = `
+            <span class="banner-icon">🚨</span>
+            <strong>CANARY TOKEN DETECTED:</strong> This scan was performed on a honeytoken/canary token. 
+            Account ID: ${honeytokenInfo.accountId} (${honeytokenInfo.type === 'thinkst' ? 'Thinkst Canary' : 'Off-brand Canary'})
+        `;
+
+        // Insert at the top of results
+        resultsContainer.insertBefore(banner, resultsContainer.firstChild);
+    }
+
+    /**
+     * Test honeytoken detection (for debugging)
+     */
+    testHoneytokenDetection() {
+        console.log('Testing honeytoken detection...');
+        
+        // Test with a known Thinkst canary token
+        const testCredentials = {
+            accessKeyId: 'AKIAXYZDQCEN4B6JSJQI', // This should extract account ID that matches a canary
+            secretAccessKey: 'test-secret'
+        };
+        
+        const result = this.checkForHoneytoken('aws', testCredentials);
+        console.log('Honeytoken detection result:', result);
+        
+        if (result.isHoneytoken) {
+            console.log('✅ Honeytoken detected correctly!');
+            this.showHoneytokenWarning(result, 
+                () => console.log('User chose to proceed'),
+                () => console.log('User chose to cancel')
+            );
+        } else {
+            console.log('❌ Honeytoken not detected');
+        }
+    }
+
     setupEventListeners() {
         // Provider selection
         document.getElementById('provider-select').addEventListener('change', (e) => {
@@ -426,6 +534,77 @@ class PeekInTheCloud {
             }
             console.log(`[${scanId}] ✅ Credentials validated successfully`);
 
+            // Check for honeytoken/canary tokens
+            console.log(`[${scanId}] 🔍 Checking for honeytoken/canary tokens...`);
+            const honeytokenInfo = this.checkForHoneytoken(provider, credentials);
+            
+            if (honeytokenInfo.isHoneytoken) {
+                console.log(`[${scanId}] ⚠️ Honeytoken detected:`, honeytokenInfo);
+                
+                // Show warning modal and wait for user decision
+                return new Promise((resolve, reject) => {
+                    this.showHoneytokenWarning(honeytokenInfo, 
+                        () => {
+                            // User chose to proceed
+                            console.log(`[${scanId}] ⚠️ User chose to proceed with honeytoken scan`);
+                            this.addHoneytokenBanner(provider, honeytokenInfo);
+                            this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, resolve, reject);
+                        },
+                        () => {
+                            // User chose to cancel
+                            console.log(`[${scanId}] ❌ User cancelled honeytoken scan`);
+                            this.isScanning = false;
+                            this.updateUI();
+                            this.showNotification('Scan cancelled - honeytoken detected', 'warning');
+                            reject(new Error('Scan cancelled by user due to honeytoken detection'));
+                        }
+                    );
+                });
+            }
+
+            // Continue with the scan
+            this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
+        } catch (error) {
+            const scanDuration = Date.now() - scanStartTime;
+            console.error(`[${scanId}] ❌ Scan failed after ${Utils.DataUtils.formatDuration(scanDuration)}:`, error);
+            console.error(`[${scanId}] Error details:`, {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+                provider: provider
+            });
+            
+            // Update error status
+            this.updateScanStatus('Scan Failed', `Error: ${error.message}`);
+            
+            // Hide loading overlay after error
+            setTimeout(() => {
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('hidden');
+                }
+            }, 2000);
+            
+            this.showNotification(`Scan failed: ${error.message}`, 'error');
+        } finally {
+            this.isScanning = false;
+            this.updateUI();
+            console.log(`[${scanId}] 🏁 Scan session ended`);
+        }
+    }
+
+    /**
+     * Continue with the actual scanning process
+     * @param {string} provider - Cloud provider
+     * @param {Object} credentials - Credentials
+     * @param {string} scanId - Scan ID
+     * @param {number} scanStartTime - Scan start time
+     * @param {Array} servicesToScan - Services to scan
+     * @param {Function} resolve - Promise resolve function (optional)
+     * @param {Function} reject - Promise reject function (optional)
+     */
+    async continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, resolve = null, reject = null) {
+        try {
             // Save credentials
             console.log(`[${scanId}] 💾 Saving credentials...`);
             this.saveCredentials(provider, credentials);
@@ -529,32 +708,11 @@ class PeekInTheCloud {
             
             this.showNotification(`${provider.toUpperCase()} scan completed successfully!`, 'success');
             
+            if (resolve) resolve();
         } catch (error) {
-            const scanDuration = Date.now() - scanStartTime;
-            console.error(`[${scanId}] ❌ Scan failed after ${Utils.DataUtils.formatDuration(scanDuration)}:`, error);
-            console.error(`[${scanId}] Error details:`, {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-                provider: provider
-            });
-            
-            // Update error status
-            this.updateScanStatus('Scan Failed', `Error: ${error.message}`);
-            
-            // Hide loading overlay after error
-            setTimeout(() => {
-                const loadingOverlay = document.getElementById('loadingOverlay');
-                if (loadingOverlay) {
-                    loadingOverlay.classList.add('hidden');
-                }
-            }, 2000);
-            
-            this.showNotification(`Scan failed: ${error.message}`, 'error');
-        } finally {
-            this.isScanning = false;
-            this.updateUI();
-            console.log(`[${scanId}] 🏁 Scan session ended`);
+            console.error(`[${scanId}] ❌ Scan failed:`, error);
+            if (reject) reject(error);
+            else throw error;
         }
     }
 

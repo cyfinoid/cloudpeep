@@ -237,6 +237,38 @@
         </div>
     </div>
 
+    <!-- Honeytoken Detection Modal -->
+    <div id="honeytokenModal" class="modal-overlay hidden">
+        <div class="modal-content honeytoken-modal">
+            <div class="modal-header">
+                <h3>⚠️ Honeytoken/Canary Token Detected</h3>
+            </div>
+            <div class="modal-body">
+                <div class="honeytoken-warning">
+                    <div class="warning-icon">🚨</div>
+                    <div class="warning-content">
+                        <h4>Security Warning</h4>
+                        <p>The AWS credentials you provided appear to be <strong>honeytoken/canary tokens</strong> designed to detect unauthorized access.</p>
+                        
+                        <div class="canary-details">
+                            <div class="canary-type" id="canary-type">Unknown Canary</div>
+                            <div class="account-id">Account ID: <span id="canary-account-id">Unknown</span></div>
+                            <div class="canary-message" id="canary-message">This is a canary token that will alert security teams if used.</div>
+                        </div>
+                        
+                        <div class="warning-alert">
+                            <strong>⚠️ WARNING:</strong> If you proceed with the scan, this will trigger alerts and notify the token owner of your activity.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelHoneytokenScan" class="btn btn-secondary">Cancel (Recommended)</button>
+                <button id="proceedHoneytokenScan" class="btn btn-danger">Proceed Anyway</button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="js/utils.js"></script>
     <script src="js/services.js"></script>

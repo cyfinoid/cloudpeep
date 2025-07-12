@@ -3,7 +3,19 @@
  * Comprehensive utility library for cloud service enumeration
  */
 
+// Global state management
+const AppState = {
+    currentProvider: null,
+    scanResults: null,
+    isScanning: false
+};
+
 const Utils = {
+    /**
+     * Global application state
+     */
+    AppState,
+
     /**
      * Error handling utilities
      */
@@ -119,6 +131,31 @@ const Utils = {
         },
 
         /**
+         * Show loading state with overlay
+         * @param {boolean} show - Show or hide loading
+         */
+        showLoadingOverlay(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            const button = document.getElementById('scanButton');
+            const buttonText = button?.querySelector('.button-text');
+            const spinner = button?.querySelector('.loading-spinner');
+
+            if (show) {
+                overlay?.classList.remove('hidden');
+                if (button) button.disabled = true;
+                if (buttonText) buttonText.textContent = 'Scanning...';
+                if (spinner) spinner.classList.remove('hidden');
+                AppState.isScanning = true;
+            } else {
+                overlay?.classList.add('hidden');
+                if (button) button.disabled = false;
+                if (buttonText) buttonText.textContent = 'Scan Credentials';
+                if (spinner) spinner.classList.add('hidden');
+                AppState.isScanning = false;
+            }
+        },
+
+        /**
          * Update scan button state
          */
         updateScanButton() {
@@ -131,6 +168,34 @@ const Utils = {
                     button.disabled = !isValid;
                 }
             });
+        },
+
+        /**
+         * Enable/disable scan button based on form validity
+         */
+        updateScanButtonAdvanced() {
+            const button = document.getElementById('scanButton');
+            const provider = document.getElementById('cloudProvider')?.value;
+            
+            if (!provider) {
+                if (button) button.disabled = true;
+                return;
+            }
+
+            let isValid = false;
+            const form = document.getElementById(`${provider}-form`);
+            
+            if (form && !form.classList.contains('hidden')) {
+                const inputs = form.querySelectorAll('input, select, textarea');
+                isValid = Array.from(inputs).every(input => {
+                    if (input.type === 'password' || input.type === 'text') {
+                        return input.value.trim() !== '';
+                    }
+                    return true;
+                });
+            }
+
+            if (button) button.disabled = !isValid || AppState.isScanning;
         },
 
         /**
@@ -320,6 +385,44 @@ const Utils = {
                 });
             } catch (error) {
                 Utils.ErrorHandler.logError(error, 'StorageUtils.clearAllData');
+            }
+        },
+
+        /**
+         * Get saved scan results (legacy function)
+         * @returns {Array} - Array of saved results
+         */
+        getSavedResults() {
+            const results = [];
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('peekinthecloud_')) {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        results.push(data);
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to retrieve saved results:', error);
+            }
+            return results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        },
+
+        /**
+         * Clear saved results (legacy function)
+         */
+        clearSavedResults() {
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('peekinthecloud_')) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+            } catch (error) {
+                console.warn('Failed to clear saved results:', error);
             }
         }
     },
@@ -565,6 +668,20 @@ const Utils = {
             const middle = '*'.repeat(data.length - visibleChars * 2);
             
             return start + middle + end;
+        },
+
+        /**
+         * Clear sensitive data from memory
+         * @param {Object} credentials - Credentials object
+         */
+        clearCredentials(credentials) {
+            if (credentials) {
+                Object.keys(credentials).forEach(key => {
+                    if (typeof credentials[key] === 'string') {
+                        credentials[key] = '';
+                    }
+                });
+            }
         }
     },
 
@@ -627,6 +744,149 @@ const Utils = {
                 }
                 return cloned;
             }
+        }
+    },
+
+    /**
+     * Honeytoken/Canary Detection Utilities
+     */
+    HoneytokenUtils: {
+        /**
+         * Extract AWS Account ID from Access Key ID
+         * @param {string} accessKeyId - AWS Access Key ID
+         * @returns {string} AWS Account ID
+         */
+        extractAccountIdFromKey(accessKeyId) {
+            try {
+                // Remove AKIA prefix
+                const trimmedKey = accessKeyId.substring(4);
+                
+                // Base32 decode
+                const decoded = this.base32Decode(trimmedKey);
+                
+                // Extract first 6 bytes
+                const accountBytes = decoded.slice(0, 6);
+                
+                // Convert to integer
+                let accountInt = 0;
+                for (let i = 0; i < accountBytes.length; i++) {
+                    accountInt = (accountInt << 8) | accountBytes[i];
+                }
+                
+                // Apply mask and shift
+                const mask = 0x7fffffffff80;
+                const accountId = (accountInt & mask) >> 7;
+                
+                return accountId.toString().padStart(12, '0');
+            } catch (error) {
+                console.error('Error extracting account ID:', error);
+                return null;
+            }
+        },
+
+        /**
+         * Base32 decode function
+         * @param {string} input - Base32 encoded string
+         * @returns {Uint8Array} Decoded bytes
+         */
+        base32Decode(input) {
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            const padding = '=';
+            
+            let bits = 0;
+            let value = 0;
+            let output = [];
+            
+            for (let i = 0; i < input.length; i++) {
+                const char = input[i];
+                if (char === padding) break;
+                
+                const index = alphabet.indexOf(char.toUpperCase());
+                if (index === -1) continue;
+                
+                value = (value << 5) | index;
+                bits += 5;
+                
+                if (bits >= 8) {
+                    output.push((value >>> (bits - 8)) & 255);
+                    bits -= 8;
+                }
+            }
+            
+            return new Uint8Array(output);
+        },
+
+        /**
+         * Known canary/honeytoken account IDs
+         */
+        canaryAccounts: {
+            // Thinkst Canary (canarytokens.org)
+            thinkst: [
+                "052310077262",
+                "171436882533", 
+                "534261010715",
+                "595918472158",
+                "717712589309",
+                "819147034852",
+                "992382622183"
+            ],
+            
+            // Thinkst Knockoffs (off-brand canaries)
+            thinkstKnockoffs: [
+                "044858866125",
+                "251535659677",
+                "344043088457",
+                "351906852752",
+                "390477818340",
+                "426127672474",
+                "427150556519",
+                "439872796651",
+                "445142720921",
+                "465867158099",
+                "637958123769",
+                "693412236332",
+                "732624840810",
+                "735421457923",
+                "959235150393",
+                "982842642351"
+            ]
+        },
+
+        /**
+         * Check if AWS credentials are honeytokens
+         * @param {Object} credentials - AWS credentials
+         * @returns {Object} Detection result
+         */
+        detectHoneytoken(credentials) {
+            if (!credentials.accessKeyId) {
+                return { isHoneytoken: false, type: null, accountId: null };
+            }
+
+            const accountId = this.extractAccountIdFromKey(credentials.accessKeyId);
+            if (!accountId) {
+                return { isHoneytoken: false, type: null, accountId: null };
+            }
+
+            // Check against known canary accounts
+            if (this.canaryAccounts.thinkst.includes(accountId)) {
+                return {
+                    isHoneytoken: true,
+                    type: 'thinkst',
+                    accountId: accountId,
+                    message: 'This is an AWS canary token generated at canarytokens.org, and was not set off; learn more here: https://trufflesecurity.com/canaries'
+                };
+            }
+
+            if (this.canaryAccounts.thinkstKnockoffs.includes(accountId)) {
+                return {
+                    isHoneytoken: true,
+                    type: 'thinkstKnockoffs',
+                    accountId: accountId,
+                    message: 'This is an off brand AWS Canary inspired by canarytokens.org. It wasn\'t set off; learn more here: https://trufflesecurity.com/canaries'
+                };
+            }
+
+            return { isHoneytoken: false, type: null, accountId: accountId };
         }
     }
 };

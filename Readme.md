@@ -15,8 +15,16 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 
 - ✅ **Fully client-side** - works entirely in browser
 - ✅ **Multi-cloud support** - AWS, Azure, and GCP
+- ✅ **Comprehensive service coverage** - 50+ AWS services, complete Azure/GCP enumeration
 - ✅ **Visual service grid** - see accessible services at a glance
 - ✅ **Detailed permissions** - understand what actions are allowed
+- ✅ **Security analysis engine** - ScoutSuite-inspired security rule evaluation
+- ✅ **Resource cross-referencing** - map relationships between resources
+- ✅ **Enhanced resource analysis** - detailed security analysis of individual resources
+- ✅ **Attack surface analysis** - identify publicly accessible and over-privileged resources
+- ✅ **Security posture scoring** - calculate overall security scores and risk levels
+- ✅ **Compliance mapping** - CIS benchmark compliance checking
+- ✅ **Real-time debugging** - comprehensive logging and progress tracking
 - ✅ **Export results** - download or copy scan results
 - ✅ **Responsive design** - works on desktop and mobile
 - ✅ **Offline capability** - with appropriate warnings
@@ -51,11 +59,16 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - Session Token (optional, for temporary credentials)
 
 **Services Checked:**
-- **S3** - Object storage buckets and objects
-- **EC2** - Virtual machines and instances
-- **IAM** - Users, roles, and policies
-- **STS** - Identity and access information
-- **Lambda** - Serverless functions
+- **Compute**: EC2, ECS, EKS, Elastic Beanstalk, EMR, Lambda
+- **Storage**: S3, EFS, Storage Gateway
+- **Database**: RDS, DynamoDB, Redshift, ElastiCache, Athena
+- **Networking**: VPC, Subnets, Security Groups, Route53, API Gateway
+- **Security**: IAM, CloudTrail, Secrets Manager, Detective
+- **Analytics**: Kinesis, Glue, Step Functions, CloudWatch
+- **Media**: CloudFront, MediaConvert, MediaLive, MediaPackage
+- **AI/ML**: SageMaker, Lex, IoT
+- **Development**: CodePipeline, CodeCommit, Cloud9, SSM
+- **Management**: CloudFormation, Organizations, Backup
 
 ### Microsoft Azure
 **Required Credentials:**
@@ -64,20 +77,26 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - Tenant ID
 
 **Services Checked:**
-- **Resource Groups** - Logical containers for Azure resources
-- **Virtual Machines** - Compute instances
-- **Blob Storage** - Object storage containers
-- **App Services** - Web applications and APIs
+- **Compute**: Virtual Machines, App Services, Container Instances
+- **Storage**: Blob Storage, File Storage, Queue Storage, Table Storage
+- **Database**: SQL Database, Cosmos DB, Redis Cache
+- **Networking**: Virtual Networks, Load Balancers, Application Gateway
+- **Security**: Key Vault, Security Center, Active Directory
+- **AI/ML**: Cognitive Services, Machine Learning
+- **Development**: DevOps, Functions, Logic Apps
 
 ### Google Cloud Platform (GCP)
 **Required Credentials:**
 - Service Account JSON (complete JSON file)
 
 **Services Checked:**
-- **Compute Engine** - Virtual machines
-- **Cloud Storage** - Object storage buckets
-- **IAM** - Service accounts and roles
-- **Cloud Functions** - Serverless functions
+- **Compute**: Compute Engine, App Engine, Cloud Run
+- **Storage**: Cloud Storage, Cloud Filestore
+- **Database**: Cloud SQL, Firestore, BigQuery
+- **Networking**: VPC, Load Balancing, Cloud Armor
+- **Security**: IAM, Security Command Center
+- **AI/ML**: AI Platform, Vision API, Speech API
+- **Development**: Cloud Build, Cloud Source Repositories
 
 ## 🔧 Technical Details
 
@@ -90,19 +109,24 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 ### File Structure
 ```
 cloudpeep/
-├── index.html              # Main application
-├── style.css              # Styling and responsive design
-├── main.js                # Core application logic
-├── utils.js               # Utility functions
-├── services.js            # Service metadata
-├── cloud/
-│   ├── aws.js            # AWS service scanner
-│   ├── azure.js          # Azure service scanner
-│   └── gcp.js            # GCP service scanner
+├── index.html                    # Main application
+├── style.css                    # Styling and responsive design
+├── js/
+│   ├── app.js                  # Core application logic
+│   ├── utils.js                # Utility functions
+│   ├── services.js             # Service metadata
+│   ├── security-rules.js       # Security rule engine
+│   ├── resource-mapper.js      # Resource cross-referencing
+│   ├── enhanced-analyzer.js    # Enhanced resource analysis
+│   └── scanners/
+│       ├── aws-scanner.js      # AWS service scanner
+│       ├── azure-scanner.js    # Azure service scanner
+│       └── gcp-scanner.js      # GCP service scanner
 ├── icons/
-│   └── favicon.svg       # Application icon
-├── README.md             # This file
-└── LICENSE               # MIT License
+│   └── favicon.svg             # Application icon
+├── README.md                   # This file
+├── TODO.md                     # Development roadmap
+└── LICENSE                     # MIT License
 ```
 
 ### Browser Compatibility
@@ -158,6 +182,32 @@ Click on any accessible service to see:
 - Raw API responses
 - Permission levels
 
+## 🔒 Security Analysis Features
+
+### Security Rule Engine
+- **CIS Benchmark Compliance** - Check against industry security standards
+- **Security Rules** - 50+ security rules across all cloud providers
+- **Automated Findings** - Identify security issues automatically
+- **Remediation Guidance** - Get specific steps to fix security issues
+
+### Resource Cross-Referencing
+- **Resource Mapping** - Map relationships between different services
+- **Attack Surface Analysis** - Identify publicly accessible resources
+- **Permission Escalation Paths** - Find potential privilege escalation routes
+- **Over-Privileged Resources** - Detect resources with excessive permissions
+
+### Enhanced Resource Analysis
+- **Individual Resource Scoring** - Security scores for each resource
+- **Detailed Configuration Analysis** - Deep dive into resource settings
+- **Security Posture Overview** - Overall security posture assessment
+- **Risk Level Classification** - Critical, High, Medium, Low risk levels
+
+### Security Findings
+- **Critical Issues** - Immediate security concerns requiring attention
+- **High Priority** - Significant security risks
+- **Medium Priority** - Security improvements recommended
+- **Low Priority** - Minor security enhancements
+
 ## 🔄 Export Options
 
 ### Copy to Clipboard
@@ -168,6 +218,21 @@ Click on any accessible service to see:
 - Download complete scan results
 - Filename includes provider and date
 - Useful for offline analysis
+
+## 🐛 Debugging & Logging
+
+### Real-Time Debug Panel
+- **Comprehensive Logging** - Track scan progress in real-time
+- **Progress Indicators** - See detailed progress for each service
+- **Error Context** - Detailed error messages with context
+- **Performance Metrics** - Scan duration and timing information
+
+### Debug Features
+- **Show/Hide Logs** - Toggle debug panel visibility
+- **Clear Logs** - Reset debug information
+- **Copy Logs** - Export debug information for troubleshooting
+- **Service-Specific Logging** - Track individual service scans
+- **Region Tracking** - Monitor multi-region scanning progress
 
 ## 🛠️ Troubleshooting
 
