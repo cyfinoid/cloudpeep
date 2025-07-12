@@ -35,10 +35,11 @@ class AWSScanner {
             
             // Detect available services at runtime
             console.log(`[${scanId}] 🔍 Detecting available AWS services...`);
-            const { availableServices, unavailableServices } = this.detectAvailableServices();
+            const { availableServices, unavailableServices, sdkUnavailableServices } = this.detectAvailableServices();
             console.log(`[${scanId}] ✅ Service detection completed:`, {
                 available: availableServices.length,
                 unavailable: unavailableServices.length,
+                sdk_unavailable: sdkUnavailableServices.length,
                 total: availableServices.length + unavailableServices.length
             });
             
@@ -47,26 +48,29 @@ class AWSScanner {
             await this.extractAccountInfo();
             console.log(`[${scanId}] ✅ Account information extracted:`, this.accountInfo);
             
-            // Get services to scan (use detected available services if no specific selection)
-            const services = selectedServices || availableServices;
-            console.log(`[${scanId}] 📋 Services to scan: ${services.length}`, {
-                services: services,
+            // Get services to scan - include ALL services for comprehensive hunting
+            const allServicesToScan = selectedServices || [...availableServices, ...sdkUnavailableServices];
+            console.log(`[${scanId}] 📋 Services to scan: ${allServicesToScan.length}`, {
+                services: allServicesToScan,
                 selectedServices: selectedServices ? selectedServices.length : 'ALL',
-                availableServices: availableServices.length
+                availableServices: availableServices.length,
+                sdkUnavailableServices: sdkUnavailableServices.length
             });
             
             // Scan each service
             let completedServices = 0;
             let successfulServices = 0;
             let failedServices = 0;
+            let accessibleServices = 0;
+            let sdkUnavailableServicesFound = 0;
             
-            console.log(`[${scanId}] 🔍 Starting service enumeration...`);
+            console.log(`[${scanId}] 🔍 Starting comprehensive service enumeration...`);
             
-            for (const service of services) {
+            for (const service of allServicesToScan) {
                 const serviceStartTime = Date.now();
                 completedServices++;
                 
-                console.log(`[${scanId}] 🔍 [${completedServices}/${services.length}] Scanning ${service}...`);
+                console.log(`[${scanId}] 🔍 [${completedServices}/${allServicesToScan.length}] Scanning ${service}...`);
                 
                 // Update progress for current service
                 if (this.onProgressUpdate) {
@@ -77,26 +81,37 @@ class AWSScanner {
                     await this.scanService(service);
                     const serviceDuration = Date.now() - serviceStartTime;
                     successfulServices++;
-                    console.log(`[${scanId}] ✅ [${completedServices}/${services.length}] ${service} completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
+                    
+                    // Check if service was actually accessible
+                    const result = this.results[service];
+                    if (result && !result.error && result.status !== 'sdk_unavailable') {
+                        accessibleServices++;
+                    } else if (result && result.status === 'sdk_unavailable') {
+                        sdkUnavailableServicesFound++;
+                    }
+                    
+                    console.log(`[${scanId}] ✅ [${completedServices}/${allServicesToScan.length}] ${service} completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
                 } catch (error) {
                     const serviceDuration = Date.now() - serviceStartTime;
                     failedServices++;
-                    console.error(`[${scanId}] ❌ [${completedServices}/${services.length}] ${service} failed after ${Utils.DataUtils.formatDuration(serviceDuration)}:`, error);
+                    console.error(`[${scanId}] ❌ [${completedServices}/${allServicesToScan.length}] ${service} failed after ${Utils.DataUtils.formatDuration(serviceDuration)}:`, error);
                     this.addResult(service, { error: error.message });
                 }
                 
                 // Progress update
-                const progress = Math.round((completedServices / services.length) * 100);
-                console.log(`[${scanId}] 📊 Progress: ${progress}% (${completedServices}/${services.length})`);
+                const progress = Math.round((completedServices / allServicesToScan.length) * 100);
+                console.log(`[${scanId}] 📊 Progress: ${progress}% (${completedServices}/${allServicesToScan.length})`);
             }
             
             const totalDuration = Date.now() - scanStartTime;
             console.log(`[${scanId}] 🎉 AWS scan completed!`, {
                 duration: Utils.DataUtils.formatDuration(totalDuration),
-                totalServices: services.length,
+                totalServices: allServicesToScan.length,
                 successfulServices: successfulServices,
                 failedServices: failedServices,
-                successRate: Math.round((successfulServices / services.length) * 100) + '%',
+                accessibleServices: accessibleServices,
+                sdkUnavailableServices: sdkUnavailableServicesFound,
+                successRate: Math.round((successfulServices / allServicesToScan.length) * 100) + '%',
                 accountInfo: this.accountInfo
             });
             
@@ -200,30 +215,37 @@ class AWSScanner {
 
         const availableServices = [];
         const unavailableServices = [];
+        const sdkUnavailableServices = [];
 
         console.log('🔍 Detecting AWS service availability...');
         
         for (const service of allServices) {
             const serviceName = service.toUpperCase();
             
+            // First check: Does the service constructor exist in AWS SDK?
             if (typeof AWS[serviceName] === 'function') {
                 availableServices.push(service);
-                console.log(`✅ ${service} (${serviceName}) - Available`);
+                console.log(`✅ ${service} (${serviceName}) - Constructor available`);
             } else {
-                unavailableServices.push(service);
-                console.log(`❌ ${service} (${serviceName}) - Not available`);
+                // Service constructor not found - mark as SDK unavailable
+                sdkUnavailableServices.push(service);
+                console.log(`❌ ${service} (${serviceName}) - Constructor not found in SDK`);
             }
         }
 
         console.log(`📊 Service detection summary:`, {
             total: allServices.length,
             available: availableServices.length,
-            unavailable: unavailableServices.length,
+            sdkUnavailable: sdkUnavailableServices.length,
             availableServices: availableServices,
-            unavailableServices: unavailableServices
+            sdkUnavailableServices: sdkUnavailableServices
         });
 
-        return { availableServices, unavailableServices };
+        return { 
+            availableServices, 
+            unavailableServices: sdkUnavailableServices,
+            sdkUnavailableServices 
+        };
     }
 
     /**
@@ -286,7 +308,156 @@ class AWSScanner {
             sqs: this.scanSQS
         };
         
-        return scanners[service];
+        // If we have a specific scanner for this service, use it
+        if (scanners[service]) {
+            return scanners[service];
+        }
+        
+        // For services that exist in SDK but don't have specific scanners,
+        // use the generic service hunter
+        return this.scanGenericService.bind(this, service);
+    }
+
+    /**
+     * Generic service scanner that tests actual API calls
+     * @param {string} service - Service name
+     */
+    async scanGenericService(service) {
+        const scanId = Utils.SecurityUtils.generateRandomString(6);
+        const serviceStartTime = Date.now();
+        
+        console.log(`[${scanId}] 🔍 Testing ${service} with generic scanner...`);
+        
+        try {
+            const serviceName = service.toUpperCase();
+            const serviceClient = new AWS[serviceName]();
+            
+            // Get available methods for this service
+            const availableMethods = this.getServiceMethods(serviceClient);
+            console.log(`[${scanId}] 📋 Available methods for ${service}:`, availableMethods);
+            
+            // Try common list/describe methods
+            const testResults = await this.testServiceMethods(serviceClient, availableMethods, service);
+            
+            this.addResult(service, {
+                status: 'tested',
+                methods_available: availableMethods,
+                test_results: testResults,
+                scan_duration: Date.now() - serviceStartTime
+            });
+            
+            console.log(`[${scanId}] ✅ ${service} generic scan completed in ${Utils.DataUtils.formatDuration(Date.now() - serviceStartTime)}`);
+            
+        } catch (error) {
+            const errorInfo = Utils.ErrorHandler.handleAPIError(error, service);
+            this.addResult(service, { 
+                error: errorInfo.message,
+                error_code: errorInfo.code,
+                error_type: errorInfo.retryable ? 'retryable' : 'permanent',
+                scan_duration: Date.now() - serviceStartTime
+            });
+            
+            console.error(`[${scanId}] ❌ ${service} generic scan failed:`, errorInfo);
+        }
+    }
+
+    /**
+     * Get available methods for a service client
+     * @param {Object} serviceClient - AWS service client
+     * @returns {Object} List of available methods
+     */
+    getServiceMethods(serviceClient) {
+        const methods = [];
+        const commonListMethods = [
+            'list', 'describe', 'get', 'scan', 'query', 'search'
+        ];
+        
+        // Get all methods from the service client
+        for (const methodName in serviceClient) {
+            if (typeof serviceClient[methodName] === 'function' && 
+                !methodName.startsWith('_') && 
+                methodName !== 'constructor') {
+                methods.push(methodName);
+            }
+        }
+        
+        // Filter for common list/describe methods
+        const listMethods = methods.filter(method => 
+            commonListMethods.some(prefix => method.toLowerCase().includes(prefix))
+        );
+        
+        return {
+            all: methods,
+            list_methods: listMethods
+        };
+    }
+
+    /**
+     * Test service methods to see what's accessible
+     * @param {Object} serviceClient - AWS service client
+     * @param {Object} availableMethods - Available methods object
+     * @param {string} service - Service name
+     * @returns {Object} Test results
+     */
+    async testServiceMethods(serviceClient, availableMethods, service) {
+        const testResults = {
+            successful_methods: [],
+            failed_methods: [],
+            accessible_resources: [],
+            error_summary: {}
+        };
+        
+        // Test list methods first (they're usually safe to call)
+        for (const methodName of availableMethods.list_methods) {
+            try {
+                console.log(`[${service}] Testing method: ${methodName}`);
+                
+                // Call the method (without parameters for safety)
+                const result = await serviceClient[methodName]().promise();
+                
+                testResults.successful_methods.push({
+                    method: methodName,
+                    result: result
+                });
+                
+                // Extract resource information if available
+                if (result && typeof result === 'object') {
+                    const resourceKeys = Object.keys(result).filter(key => 
+                        key.toLowerCase().includes('list') || 
+                        key.toLowerCase().includes('items') ||
+                        key.toLowerCase().includes('resources')
+                    );
+                    
+                    resourceKeys.forEach(key => {
+                        if (Array.isArray(result[key])) {
+                            testResults.accessible_resources.push({
+                                type: key,
+                                count: result[key].length,
+                                items: result[key].slice(0, 5) // Limit to first 5 items
+                            });
+                        }
+                    });
+                }
+                
+            } catch (error) {
+                const errorInfo = Utils.ErrorHandler.handleAPIError(error, service);
+                
+                testResults.failed_methods.push({
+                    method: methodName,
+                    error: errorInfo.message,
+                    code: errorInfo.code,
+                    retryable: errorInfo.retryable
+                });
+                
+                // Track error types
+                if (!testResults.error_summary[errorInfo.code]) {
+                    testResults.error_summary[errorInfo.code] = 0;
+                }
+                testResults.error_summary[errorInfo.code]++;
+            }
+        }
+        
+        return testResults;
     }
 
     /**
@@ -294,9 +465,111 @@ class AWSScanner {
      * @param {string} service - Service name
      */
     async scanUnavailableService(service) {
+        const scanId = Utils.SecurityUtils.generateRandomString(6);
+        const serviceStartTime = Date.now();
+        
+        console.log(`[${scanId}] 🚧 Testing ${service} - constructor not found in SDK`);
+        
+        // Use comprehensive service hunting
+        const huntingResults = await this.huntService(service);
+        
+        if (huntingResults.accessible) {
+            // Service is accessible through hunting
+            this.addResult(service, {
+                status: 'accessible_hunted',
+                access_method: huntingResults.access_method,
+                resources: huntingResults.resources,
+                api_tests: huntingResults.api_tests,
+                scan_duration: Date.now() - serviceStartTime,
+                hunting_duration: huntingResults.hunting_duration,
+                note: `Service discovered through comprehensive hunting using ${huntingResults.access_method}`
+            });
+            console.log(`[${scanId}] ✅ ${service} accessible through hunting: ${huntingResults.access_method}`);
+        } else {
+            // Service truly not available - try alternative approaches
+            const alternativeTests = await this.testAlternativeServiceAccess(service);
+            
+            if (alternativeTests.accessible) {
+                // Service is accessible through alternative means
+                this.addResult(service, {
+                    status: 'accessible_alternative',
+                    access_method: alternativeTests.method,
+                    resources: alternativeTests.resources,
+                    scan_duration: Date.now() - serviceStartTime,
+                    hunting_errors: huntingResults.errors,
+                    note: 'Service accessible through alternative SDK method'
+                });
+                console.log(`[${scanId}] ✅ ${service} accessible through alternative method: ${alternativeTests.method}`);
+            } else {
+                // Service truly not available in SDK
+                this.addResult(service, {
+                    status: 'sdk_unavailable',
+                    error: 'Service constructor not found in AWS SDK v2 browser version',
+                    error_code: 'SDK_UNAVAILABLE',
+                    scan_duration: Date.now() - serviceStartTime,
+                    hunting_errors: huntingResults.errors,
+                    alternative_errors: alternativeTests.errors || [],
+                    note: 'This service may be available in newer SDK versions or through different access methods'
+                });
+                console.log(`[${scanId}] ❌ ${service} truly unavailable in current SDK version`);
+            }
+        }
+    }
+
+    /**
+     * Test alternative ways to access services that don't have direct constructors
+     * @param {string} service - Service name
+     * @returns {Object} Test results
+     */
+    async testAlternativeServiceAccess(service) {
         const serviceName = service.toUpperCase();
-        console.log(`🚧 ${service} (${serviceName}) not available in AWS SDK v2 browser version - constructor not found`);
-        this.addUnimplementedService(service);
+        
+        // Test 1: Check if service exists as a property of AWS
+        if (AWS[serviceName] && typeof AWS[serviceName] === 'object') {
+            try {
+                console.log(`[${service}] Testing as AWS.${serviceName} object`);
+                // Try to create a client using the service object
+                const client = new AWS[serviceName]();
+                return { accessible: true, method: 'AWS.' + serviceName, resources: [] };
+            } catch (error) {
+                console.log(`[${service}] AWS.${serviceName} object test failed:`, error.message);
+            }
+        }
+        
+        // Test 2: Check if service exists with different casing
+        const alternativeNames = [
+            serviceName.toLowerCase(),
+            serviceName.charAt(0).toUpperCase() + serviceName.slice(1).toLowerCase(),
+            serviceName.replace(/([A-Z])/g, '_$1').toLowerCase()
+        ];
+        
+        for (const altName of alternativeNames) {
+            if (AWS[altName] && typeof AWS[altName] === 'function') {
+                try {
+                    console.log(`[${service}] Testing as AWS.${altName}`);
+                    const client = new AWS[altName]();
+                    return { accessible: true, method: 'AWS.' + altName, resources: [] };
+                } catch (error) {
+                    console.log(`[${service}] AWS.${altName} test failed:`, error.message);
+                }
+            }
+        }
+        
+        // Test 3: Check if service is available through global AWS object
+        if (typeof AWS.Service === 'function') {
+            try {
+                console.log(`[${service}] Testing as AWS.Service`);
+                const client = new AWS.Service({
+                    service: serviceName,
+                    region: this.currentRegion
+                });
+                return { accessible: true, method: 'AWS.Service', resources: [] };
+            } catch (error) {
+                console.log(`[${service}] AWS.Service test failed:`, error.message);
+            }
+        }
+        
+        return { accessible: false, method: null, resources: [] };
     }
 
     // Compute Services
@@ -1426,14 +1699,20 @@ class AWSScanner {
             finalResults['account_info'] = this.accountInfo;
         }
 
+        // Categorize results by status
+        const categorizedResults = this.categorizeResults();
+        finalResults['service_categories'] = categorizedResults;
+
         // Add service detection results
-        const { availableServices, unavailableServices } = this.detectAvailableServices();
+        const { availableServices, unavailableServices, sdkUnavailableServices } = this.detectAvailableServices();
         finalResults['service_detection'] = {
             total: availableServices.length + unavailableServices.length,
             available: availableServices.length,
             unavailable: unavailableServices.length,
             available_services: availableServices,
-            unavailable_services: unavailableServices
+            unavailable_services: unavailableServices,
+            sdk_unavailable: sdkUnavailableServices.length,
+            sdk_unavailable_services: sdkUnavailableServices
         };
 
         // Add grouped unimplemented services if any exist
@@ -1451,6 +1730,242 @@ class AWSScanner {
         }
         
         return finalResults;
+    }
+
+    /**
+     * Categorize scan results by status
+     * @returns {Object} Categorized results
+     */
+    categorizeResults() {
+        const categories = {
+            accessible: [],
+            accessible_hunted: [],
+            accessible_alternative: [],
+            sdk_unavailable: [],
+            permission_denied: [],
+            network_error: [],
+            other_errors: []
+        };
+
+        Object.entries(this.results).forEach(([service, data]) => {
+            if (service === 'account_info' || service === 'service_detection') return;
+
+            if (data.status === 'accessible_hunted') {
+                categories.accessible_hunted.push(service);
+            } else if (data.status === 'accessible_alternative') {
+                categories.accessible_alternative.push(service);
+            } else if (data.status === 'sdk_unavailable') {
+                categories.sdk_unavailable.push(service);
+            } else if (data.error_code === 'PERMISSION_ERROR') {
+                categories.permission_denied.push(service);
+            } else if (data.error_code === 'NETWORK_ERROR') {
+                categories.network_error.push(service);
+            } else if (data.error) {
+                categories.other_errors.push(service);
+            } else {
+                categories.accessible.push(service);
+            }
+        });
+
+        return {
+            accessible: {
+                count: categories.accessible.length,
+                services: categories.accessible
+            },
+            accessible_hunted: {
+                count: categories.accessible_hunted.length,
+                services: categories.accessible_hunted
+            },
+            accessible_alternative: {
+                count: categories.accessible_alternative.length,
+                services: categories.accessible_alternative
+            },
+            sdk_unavailable: {
+                count: categories.sdk_unavailable.length,
+                services: categories.sdk_unavailable
+            },
+            permission_denied: {
+                count: categories.permission_denied.length,
+                services: categories.permission_denied
+            },
+            network_error: {
+                count: categories.network_error.length,
+                services: categories.network_error
+            },
+            other_errors: {
+                count: categories.other_errors.length,
+                services: categories.other_errors
+            }
+        };
+    }
+
+    /**
+     * Comprehensive service hunting - test multiple ways to access services
+     * @param {string} service - Service name
+     * @returns {Object} Hunting results
+     */
+    async huntService(service) {
+        const scanId = Utils.SecurityUtils.generateRandomString(6);
+        const huntingStartTime = Date.now();
+        
+        console.log(`[${scanId}] 🎯 Starting comprehensive hunting for ${service}...`);
+        
+        const huntingResults = {
+            service: service,
+            accessible: false,
+            access_method: null,
+            resources: [],
+            errors: [],
+            hunting_duration: 0
+        };
+
+        // Method 1: Direct constructor
+        try {
+            const serviceName = service.toUpperCase();
+            if (typeof AWS[serviceName] === 'function') {
+                const client = new AWS[serviceName]();
+                huntingResults.accessible = true;
+                huntingResults.access_method = `AWS.${serviceName}`;
+                console.log(`[${scanId}] ✅ ${service} accessible via AWS.${serviceName}`);
+            }
+        } catch (error) {
+            huntingResults.errors.push({
+                method: 'direct_constructor',
+                error: error.message
+            });
+        }
+
+        // Method 2: Alternative casing
+        if (!huntingResults.accessible) {
+            const alternativeNames = [
+                service.toLowerCase(),
+                service.charAt(0).toUpperCase() + service.slice(1).toLowerCase(),
+                service.replace(/([A-Z])/g, '_$1').toLowerCase()
+            ];
+            
+            for (const altName of alternativeNames) {
+                try {
+                    if (AWS[altName] && typeof AWS[altName] === 'function') {
+                        const client = new AWS[altName]();
+                        huntingResults.accessible = true;
+                        huntingResults.access_method = `AWS.${altName}`;
+                        console.log(`[${scanId}] ✅ ${service} accessible via AWS.${altName}`);
+                        break;
+                    }
+                } catch (error) {
+                    huntingResults.errors.push({
+                        method: `alternative_casing_${altName}`,
+                        error: error.message
+                    });
+                }
+            }
+        }
+
+        // Method 3: AWS.Service approach
+        if (!huntingResults.accessible && typeof AWS.Service === 'function') {
+            try {
+                const client = new AWS.Service({
+                    service: service.toUpperCase(),
+                    region: this.currentRegion
+                });
+                huntingResults.accessible = true;
+                huntingResults.access_method = 'AWS.Service';
+                console.log(`[${scanId}] ✅ ${service} accessible via AWS.Service`);
+            } catch (error) {
+                huntingResults.errors.push({
+                    method: 'aws_service',
+                    error: error.message
+                });
+            }
+        }
+
+        // Method 4: Test common API patterns
+        if (huntingResults.accessible) {
+            try {
+                const client = new AWS[huntingResults.access_method.split('.')[1]]();
+                const testResults = await this.testServiceAPIs(client, service);
+                huntingResults.resources = testResults.resources;
+                huntingResults.api_tests = testResults.api_tests;
+            } catch (error) {
+                huntingResults.errors.push({
+                    method: 'api_testing',
+                    error: error.message
+                });
+            }
+        }
+
+        huntingResults.hunting_duration = Date.now() - huntingStartTime;
+        console.log(`[${scanId}] 🎯 Hunting completed for ${service} in ${Utils.DataUtils.formatDuration(huntingResults.hunting_duration)}`);
+        
+        return huntingResults;
+    }
+
+    /**
+     * Test common API patterns for a service
+     * @param {Object} client - AWS service client
+     * @param {string} service - Service name
+     * @returns {Object} API test results
+     */
+    async testServiceAPIs(client, service) {
+        const testResults = {
+            resources: [],
+            api_tests: []
+        };
+
+        // Common API patterns to test
+        const commonAPIs = [
+            'list', 'describe', 'get', 'scan', 'query', 'search'
+        ];
+
+        // Get all methods from the client
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(client))
+            .filter(method => typeof client[method] === 'function' && 
+                             !method.startsWith('_') && 
+                             method !== 'constructor');
+
+        // Test methods that match common patterns
+        for (const method of methods) {
+            if (commonAPIs.some(api => method.toLowerCase().includes(api))) {
+                try {
+                    console.log(`[${service}] Testing API: ${method}`);
+                    const result = await client[method]().promise();
+                    
+                    testResults.api_tests.push({
+                        method: method,
+                        success: true,
+                        result: result
+                    });
+
+                    // Extract resources from result
+                    if (result && typeof result === 'object') {
+                        const resourceKeys = Object.keys(result).filter(key => 
+                            key.toLowerCase().includes('list') || 
+                            key.toLowerCase().includes('items') ||
+                            key.toLowerCase().includes('resources') ||
+                            key.toLowerCase().includes('data')
+                        );
+                        
+                        resourceKeys.forEach(key => {
+                            if (Array.isArray(result[key])) {
+                                testResults.resources.push({
+                                    type: key,
+                                    count: result[key].length,
+                                    sample: result[key].slice(0, 3)
+                                });
+                            }
+                        });
+                    }
+                } catch (error) {
+                    testResults.api_tests.push({
+                        method: method,
+                        success: false,
+                        error: error.message
+                    });
+                }
+            }
+        }
+
+        return testResults;
     }
 }
 
