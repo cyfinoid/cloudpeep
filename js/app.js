@@ -758,117 +758,7 @@ class PeekInTheCloud {
         }
     }
 
-    showComplianceOptions(provider) {
-        const results = this.getResults(provider);
-        
-        if (!results) {
-            this.showNotification('No scan results available for compliance analysis. Please run a scan first.', 'error');
-            return;
-        }
 
-        // Create compliance options modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.id = 'compliance-modal';
-        
-        modal.innerHTML = `
-            <div class="modal-content compliance-modal">
-                <div class="modal-header">
-                    <h3>📋 Select Compliance Frameworks</h3>
-                    <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Choose which compliance frameworks to check against:</p>
-                    
-                    <div class="compliance-options">
-                        <label class="compliance-option">
-                            <input type="checkbox" id="hipaa-compliance" checked>
-                            <span class="option-icon">🏥</span>
-                            <div class="option-content">
-                                <strong>HIPAA</strong>
-                                <small>Health Insurance Portability and Accountability Act</small>
-                            </div>
-                        </label>
-                        
-                        <label class="compliance-option">
-                            <input type="checkbox" id="pci-compliance" checked>
-                            <span class="option-icon">💳</span>
-                            <div class="option-content">
-                                <strong>PCI DSS</strong>
-                                <small>Payment Card Industry Data Security Standard</small>
-                            </div>
-                        </label>
-                        
-                        <label class="compliance-option">
-                            <input type="checkbox" id="cis-compliance" checked>
-                            <span class="option-icon">🛡️</span>
-                            <div class="option-content">
-                                <strong>CIS Benchmarks</strong>
-                                <small>Center for Internet Security Benchmarks</small>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-                    <button class="btn btn-primary" onclick="app.performComplianceAnalysis('${provider}')">Start Compliance Analysis</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-
-    async performComplianceAnalysis(provider) {
-        const results = this.getResults(provider);
-        
-        if (!results) {
-            this.showNotification('No scan results available for compliance analysis. Please run a scan first.', 'error');
-            return;
-        }
-
-        // Get selected frameworks
-        const frameworks = [];
-        if (document.getElementById('hipaa-compliance').checked) frameworks.push('hipaa');
-        if (document.getElementById('pci-compliance').checked) frameworks.push('pci');
-        if (document.getElementById('cis-compliance').checked) frameworks.push('cis');
-
-        if (frameworks.length === 0) {
-            this.showNotification('Please select at least one compliance framework', 'error');
-            return;
-        }
-
-        // Close modal
-        const modal = document.getElementById('compliance-modal');
-        if (modal) modal.remove();
-
-        // Show loading state
-        this.showNotification('Starting compliance analysis...', 'info');
-        
-        try {
-            // Initialize security analyzer with selected frameworks
-            const securityAnalyzer = new SecurityAnalyzer();
-            
-            // Filter compliance frameworks based on selection
-            const originalFrameworks = securityAnalyzer.complianceFrameworks;
-            securityAnalyzer.complianceFrameworks = {};
-            frameworks.forEach(framework => {
-                if (originalFrameworks[framework]) {
-                    securityAnalyzer.complianceFrameworks[framework] = originalFrameworks[framework];
-                }
-            });
-            
-            const complianceAnalysis = await securityAnalyzer.analyzeCompliance(results, provider);
-            
-            // Display compliance results
-            this.displayComplianceResults(provider, complianceAnalysis);
-            
-            this.showNotification('Compliance analysis completed!', 'success');
-        } catch (error) {
-            console.error('Compliance analysis failed:', error);
-            this.showNotification('Compliance analysis failed: ' + error.message, 'error');
-        }
-    }
 
     /**
      * Save scan results to localStorage (excluding sensitive data)
@@ -1225,86 +1115,7 @@ class PeekInTheCloud {
         return null;
     }
 
-    displayComplianceResults(provider, complianceResults) {
-        const resultsContainer = document.getElementById('scan-results');
-        const complianceResultsDiv = document.createElement('div');
-        complianceResultsDiv.className = 'compliance-results';
-        complianceResultsDiv.id = `${provider}-compliance-results`;
 
-        let complianceHtml = `
-            <div class="compliance-header">
-                <h3>📋 Compliance Analysis Results</h3>
-                <div class="compliance-summary">
-        `;
-
-        Object.entries(complianceResults).forEach(([framework, result]) => {
-            const frameworkName = framework.toUpperCase();
-            const statusClass = result.compliant ? 'compliant' : 'non-compliant';
-            const statusIcon = result.compliant ? '✅' : '❌';
-            
-            complianceHtml += `
-                <div class="compliance-framework ${statusClass}">
-                    <span class="framework-icon">${statusIcon}</span>
-                    <div class="framework-info">
-                        <strong>${frameworkName}</strong>
-                        <span class="framework-score">${result.score}/100</span>
-                    </div>
-                </div>
-            `;
-        });
-
-        complianceHtml += `
-                </div>
-            </div>
-            <div class="compliance-details">
-        `;
-
-        Object.entries(complianceResults).forEach(([framework, result]) => {
-            const frameworkName = framework.toUpperCase();
-            complianceHtml += `
-                <div class="framework-details">
-                    <h4>${frameworkName} Compliance</h4>
-                    <div class="compliance-status ${result.compliant ? 'compliant' : 'non-compliant'}">
-                        Status: ${result.compliant ? 'Compliant' : 'Non-Compliant'} (Score: ${result.score}/100)
-                    </div>
-                    ${result.findings && result.findings.length > 0 ? `
-                        <div class="compliance-findings">
-                            <h5>Findings:</h5>
-                            <ul>
-                                ${result.findings.map(finding => {
-                                    const type = finding.type || 'Unknown';
-                                    const description = finding.description || 'No description available';
-                                    const recommendation = finding.recommendation || '';
-                                    const severity = finding.severity || 'medium';
-                                    
-                                    return `
-                                        <li class="finding ${severity}">
-                                            <strong>${type}:</strong> ${description}
-                                            ${recommendation ? `<br><em>Recommendation: ${recommendation}</em>` : ''}
-                                        </li>
-                                    `;
-                                }).join('')}
-                            </ul>
-                        </div>
-                    ` : '<p>No compliance issues found.</p>'}
-                </div>
-            `;
-        });
-
-        complianceHtml += `
-            </div>
-        `;
-
-        complianceResultsDiv.innerHTML = complianceHtml;
-
-        // Remove existing compliance results for this provider
-        const existing = document.getElementById(`${provider}-compliance-results`);
-        if (existing) {
-            existing.remove();
-        }
-        
-        resultsContainer.appendChild(complianceResultsDiv);
-    }
 
     displayAnalysisOptions(provider) {
         const resultsContainer = document.getElementById('scan-results');
@@ -1328,14 +1139,6 @@ class PeekInTheCloud {
                     <span class="btn-text">
                         <strong>Security Review</strong>
                         <small>Analyze security posture, threats, and vulnerabilities</small>
-                    </span>
-                </button>
-                
-                <button class="analysis-btn compliance-btn" onclick="app.showComplianceOptions('${provider}')" ${!hasResults ? 'disabled' : ''}>
-                    <span class="btn-icon">📋</span>
-                    <span class="btn-text">
-                        <strong>Compliance Review</strong>
-                        <small>Check against industry standards and frameworks</small>
                     </span>
                 </button>
             </div>
