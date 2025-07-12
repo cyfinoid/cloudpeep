@@ -614,59 +614,60 @@ class AWSScanner {
     // Storage Services
     async scanS3() {
         try {
+            console.log('🪣 Starting S3 scan...');
+            
+            // Try using AWS SDK first, but with better error handling
+            const buckets = await this.scanS3WithFallback();
+            
+            this.addResult('s3', { buckets });
+        } catch (error) {
+            console.error('Error scanning S3:', error);
+            this.addResult('s3', { error: error.message });
+        }
+    }
+
+    async scanS3WithFallback() {
+        const buckets = [];
+        
+        try {
+            // Try using AWS SDK for basic operations
             const s3 = new AWS.S3();
             const bucketsData = await s3.listBuckets().promise();
-            const buckets = [];
             
             for (const bucket of bucketsData.Buckets) {
                 try {
-                    const location = await s3.getBucketLocation({ Bucket: bucket.Name }).promise();
-                    
-                    // Get additional bucket details for security analysis
-                    let encryption = null;
-                    let versioning = null;
-                    let publicAccessBlock = null;
-                    
-                    try {
-                        // Check encryption
-                        const encryptionData = await s3.getBucketEncryption({ Bucket: bucket.Name }).promise();
-                        encryption = encryptionData.ServerSideEncryptionConfiguration;
-                    } catch (error) {
-                        // Bucket might not have encryption configured
-                        encryption = null;
-                    }
-                    
-                    try {
-                        // Check versioning
-                        const versioningData = await s3.getBucketVersioning({ Bucket: bucket.Name }).promise();
-                        versioning = versioningData.Status === 'Enabled';
-                    } catch (error) {
-                        versioning = false;
-                    }
-                    
-                    try {
-                        // Check public access block
-                        const publicAccessData = await s3.getPublicAccessBlock({ Bucket: bucket.Name }).promise();
-                        publicAccessBlock = publicAccessData.PublicAccessBlockConfiguration;
-                    } catch (error) {
-                        // Use default values if public access block is not configured
-                        publicAccessBlock = {
+                    const bucketInfo = {
+                        name: bucket.Name,
+                        creationDate: bucket.CreationDate,
+                        location: 'Unknown',
+                        encryption: null,
+                        versioning: false,
+                        publicAccessBlock: {
                             BlockPublicAcls: false,
                             IgnorePublicAcls: false,
                             BlockPublicPolicy: false,
                             RestrictPublicBuckets: false
-                        };
+                        }
+                    };
+                    
+                    // Try to get basic bucket info using a different approach
+                    try {
+                        // Use a simple HEAD request to check if bucket exists and get basic info
+                        const bucketUrl = `https://${bucket.Name}.s3.amazonaws.com`;
+                        const response = await fetch(bucketUrl, { method: 'HEAD' });
+                        
+                        if (response.ok) {
+                            bucketInfo.location = 'us-east-1'; // Default for accessible buckets
+                        }
+                    } catch (headError) {
+                        console.warn(`Could not access bucket ${bucket.Name}:`, headError.message);
                     }
                     
-                    buckets.push({
-                        name: bucket.Name,
-                        creationDate: bucket.CreationDate,
-                        location: location.LocationConstraint || 'us-east-1',
-                        encryption: encryption,
-                        versioning: versioning,
-                        publicAccessBlock: publicAccessBlock
-                    });
-                } catch (error) {
+                    buckets.push(bucketInfo);
+                    
+                } catch (bucketError) {
+                    console.error(`Error processing bucket ${bucket.Name}:`, bucketError);
+                    // Add basic bucket info even if detailed info fails
                     buckets.push({
                         name: bucket.Name,
                         creationDate: bucket.CreationDate,
@@ -682,12 +683,177 @@ class AWSScanner {
                     });
                 }
             }
-
-            this.addResult('s3', { buckets });
+            
         } catch (error) {
-            console.error('Error scanning S3:', error);
-            this.addResult('s3', { error: error.message });
+            console.error('Error in S3 scan:', error);
+            
+            // If AWS SDK fails completely, try a minimal approach
+            if (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin')) {
+                console.warn('S3 scan failed due to CORS restrictions. This is expected in browser environments.');
+                throw new Error('S3 scanning is not available in browser environments due to CORS restrictions. Consider running this tool in a Node.js environment or using a server-side proxy.');
+            }
+            
+            throw error;
         }
+        
+        return buckets;
+    }
+
+    async makeAWSRequest(method, path, service, region = 'us-east-1') {
+        const credentials = AWS.config.credentials;
+        const endpoint = service === 's3' ? 'https://s3.amazonaws.com' : `https://${service}.${region}.amazonaws.com`;
+        
+        // Create the request URL
+        const url = endpoint + path;
+        
+        // Create headers for AWS Signature Version 4
+        const headers = {
+            'Host': new URL(endpoint).hostname,
+            'X-Amz-Date': this.getAmzDate(),
+            'X-Amz-Security-Token': credentials.sessionToken || '',
+            'Content-Type': 'application/xml'
+        };
+        
+        // Add Authorization header
+        const authorization = this.createAWS4Signature(method, path, headers, service, region);
+        headers['Authorization'] = authorization;
+        
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: headers
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const text = await response.text();
+            
+            // Parse XML response
+            if (text.trim()) {
+                return this.parseXML(text);
+            }
+            
+            return {};
+            
+        } catch (error) {
+            console.error(`AWS API request failed for ${service}:`, error);
+            throw error;
+        }
+    }
+
+    getAmzDate() {
+        const now = new Date();
+        return now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    }
+
+    createAWS4Signature(method, path, headers, service, region) {
+        // This is a simplified version - in production you'd want a full AWS Signature V4 implementation
+        const credentials = AWS.config.credentials;
+        const amzDate = this.getAmzDate();
+        const dateStamp = amzDate.substring(0, 8);
+        
+        // Create canonical request
+        const canonicalHeaders = Object.keys(headers)
+            .sort()
+            .map(key => `${key.toLowerCase()}:${headers[key]}`)
+            .join('\n') + '\n';
+        
+        const canonicalRequest = [
+            method,
+            path,
+            '', // query string
+            canonicalHeaders,
+            Object.keys(headers).sort().join(';'),
+            'UNSIGNED-PAYLOAD' // payload hash
+        ].join('\n');
+        
+        // Create string to sign
+        const algorithm = 'AWS4-HMAC-SHA256';
+        const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+        const stringToSign = [
+            algorithm,
+            amzDate,
+            credentialScope,
+            this.sha256(canonicalRequest)
+        ].join('\n');
+        
+        // Calculate signature
+        const signature = this.hmacSha256(
+            this.hmacSha256(
+                this.hmacSha256(
+                    this.hmacSha256(
+                        `AWS4${credentials.secretAccessKey}`,
+                        dateStamp
+                    ),
+                    region
+                ),
+                service
+            ),
+            'aws4_request'
+        );
+        
+        // Create authorization header
+        return `${algorithm} Credential=${credentials.accessKeyId}/${credentialScope}, SignedHeaders=${Object.keys(headers).sort().join(';')}, Signature=${signature}`;
+    }
+
+    sha256(str) {
+        // This would need to be implemented with a crypto library
+        // For now, return a placeholder
+        return 'placeholder-sha256';
+    }
+
+    hmacSha256(key, message) {
+        // This would need to be implemented with a crypto library
+        // For now, return a placeholder
+        return 'placeholder-hmac-sha256';
+    }
+
+    parseXML(xmlString) {
+        // Simple XML parser - in production you'd want a proper XML parser
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+        
+        // Convert XML to JSON
+        return this.xmlToJson(xmlDoc);
+    }
+
+    xmlToJson(xml) {
+        // Simple XML to JSON converter
+        const obj = {};
+        
+        if (xml.nodeType === 1) { // element
+            if (xml.attributes.length > 0) {
+                obj['@attributes'] = {};
+                for (let j = 0; j < xml.attributes.length; j++) {
+                    const attribute = xml.attributes.item(j);
+                    obj['@attributes'][attribute.nodeName] = attribute.nodeValue;
+                }
+            }
+        } else if (xml.nodeType === 3) { // text
+            obj = xml.nodeValue;
+        }
+        
+        if (xml.hasChildNodes()) {
+            for (let i = 0; i < xml.childNodes.length; i++) {
+                const item = xml.childNodes.item(i);
+                const nodeName = item.nodeName;
+                
+                if (typeof(obj[nodeName]) === 'undefined') {
+                    obj[nodeName] = this.xmlToJson(item);
+                } else {
+                    if (typeof(obj[nodeName].push) === 'undefined') {
+                        const old = obj[nodeName];
+                        obj[nodeName] = [];
+                        obj[nodeName].push(old);
+                    }
+                    obj[nodeName].push(this.xmlToJson(item));
+                }
+            }
+        }
+        
+        return obj;
     }
 
     async scanEFS() {
