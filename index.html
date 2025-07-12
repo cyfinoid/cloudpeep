@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PeekInTheCloud - Cloud Key Inspector</title>
-    <meta name="description" content="Privacy-preserving, browser-based tool to inspect and visualize services accessible using cloud API keys">
-    <meta name="keywords" content="cloud, security, AWS, Azure, GCP, credentials, inspector">
+    <title>PeekInTheCloud - Comprehensive Cloud Service Inspector</title>
+    <meta name="description" content="Privacy-preserving, browser-based tool to inspect and visualize services accessible using cloud API keys across AWS, Azure, and GCP">
+    <meta name="keywords" content="cloud, security, AWS, Azure, GCP, credentials, inspector, enumeration">
     
     <!-- Cloud SDKs via CDN -->
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1001.0.min.js"></script>
@@ -23,7 +23,8 @@
     <header class="header">
         <div class="container">
             <h1 class="logo">PeekInTheCloud</h1>
-            <p class="tagline">Privacy-preserving Cloud Key Inspector</p>
+            <p class="tagline">Comprehensive Cloud Service Inspector</p>
+            <p class="subtitle">Privacy-preserving enumeration across AWS, Azure, and GCP</p>
         </div>
     </header>
 
@@ -33,7 +34,7 @@
             <!-- Info Panel -->
             <section class="info-panel">
                 <h2>About This Tool</h2>
-                <p>PeekInTheCloud helps you analyze cloud credentials and visualize accessible services. All processing happens in your browser - no credentials are sent to any server.</p>
+                <p>PeekInTheCloud is a comprehensive cloud service enumeration tool that helps you analyze cloud credentials and visualize accessible services across multiple cloud providers. All processing happens in your browser - no credentials are sent to any server.</p>
                 
                 <!-- Ethical Use Disclaimer -->
                 <div class="disclaimer">
@@ -41,13 +42,26 @@
                     <p>This tool is intended for <strong>educational and internal security testing purposes only</strong>. 
                     Only use it on credentials and infrastructure that you have permission to test.</p>
                 </div>
+
+                <!-- Features -->
+                <div class="features">
+                    <h3>Key Features</h3>
+                    <ul>
+                        <li>🔍 <strong>50+ AWS Services</strong> - Comprehensive enumeration including EC2, S3, Lambda, IAM, and more</li>
+                        <li>☁️ <strong>Azure Resource Discovery</strong> - Complete resource enumeration across subscriptions</li>
+                        <li>🚀 <strong>GCP Service Coverage</strong> - Full GCP service enumeration with project discovery</li>
+                        <li>🔒 <strong>Privacy-First</strong> - All processing happens locally in your browser</li>
+                        <li>📊 <strong>Rich Results</strong> - Detailed service information with export capabilities</li>
+                        <li>⚡ <strong>Multi-Region</strong> - Scan across multiple regions simultaneously</li>
+                    </ul>
+                </div>
             </section>
 
             <!-- Cloud Provider Selection -->
             <section class="provider-selection">
                 <h2>Select Cloud Provider</h2>
                 <div class="provider-dropdown">
-                    <select id="cloudProvider" class="provider-select">
+                    <select id="provider-select" class="provider-select">
                         <option value="">Choose a cloud provider...</option>
                         <option value="aws">Amazon Web Services (AWS)</option>
                         <option value="azure">Microsoft Azure</option>
@@ -59,99 +73,124 @@
             <!-- Credential Input Forms -->
             <section class="credential-forms">
                 <!-- AWS Credentials -->
-                <div id="aws-form" class="credential-form hidden">
+                <form id="aws-form" class="credential-form" style="display: none;">
                     <h3>AWS Credentials</h3>
                     <div class="form-group">
                         <label for="aws-access-key">Access Key ID</label>
-                        <input type="text" id="aws-access-key" placeholder="AKIA...">
+                        <input type="text" name="access-key" id="aws-access-key" placeholder="AKIA..." required>
                     </div>
                     <div class="form-group">
                         <label for="aws-secret-key">Secret Access Key</label>
-                        <input type="password" id="aws-secret-key" placeholder="Enter your secret key">
+                        <input type="password" name="secret-key" id="aws-secret-key" placeholder="Enter your secret key" required>
                     </div>
                     <div class="form-group">
                         <label for="aws-session-token">Session Token (Optional)</label>
-                        <input type="text" id="aws-session-token" placeholder="Enter session token if using temporary credentials">
+                        <input type="text" name="session-token" id="aws-session-token" placeholder="Enter session token if using temporary credentials">
                     </div>
-                    <div class="form-group">
-                        <label for="aws-region">Region</label>
-                        <select id="aws-region">
-                            <option value="us-east-1">US East (N. Virginia) - us-east-1</option>
-                            <option value="us-west-2">US West (Oregon) - us-west-2</option>
-                            <option value="eu-west-1">Europe (Ireland) - eu-west-1</option>
-                            <option value="ap-southeast-1">Asia Pacific (Singapore) - ap-southeast-1</option>
-                        </select>
-                    </div>
-                </div>
+                    <button type="submit" class="scan-button">Start AWS Scan</button>
+                </form>
 
                 <!-- Azure Credentials -->
-                <div id="azure-form" class="credential-form hidden">
+                <form id="azure-form" class="credential-form" style="display: none;">
                     <h3>Azure Credentials</h3>
                     <div class="form-group">
-                        <label for="azure-client-id">Client ID</label>
-                        <input type="text" id="azure-client-id" placeholder="Enter your client ID">
+                        <label for="azure-access-token">Access Token</label>
+                        <textarea name="access-token" id="azure-access-token" placeholder="Enter your Azure Management Access Token..." required></textarea>
+                        <small>Get this from Azure CLI: <code>az account get-access-token --resource https://management.azure.com</code></small>
                     </div>
-                    <div class="form-group">
-                        <label for="azure-client-secret">Client Secret</label>
-                        <input type="password" id="azure-client-secret" placeholder="Enter your client secret">
-                    </div>
-                    <div class="form-group">
-                        <label for="azure-tenant-id">Tenant ID</label>
-                        <input type="text" id="azure-tenant-id" placeholder="Enter your tenant ID">
-                    </div>
-                </div>
+                    <button type="submit" class="scan-button">Start Azure Scan</button>
+                </form>
 
                 <!-- GCP Credentials -->
-                <div id="gcp-form" class="credential-form hidden">
+                <form id="gcp-form" class="credential-form" style="display: none;">
                     <h3>GCP Service Account</h3>
                     <div class="form-group">
                         <label for="gcp-service-account">Service Account JSON</label>
-                        <textarea id="gcp-service-account" placeholder="Paste your service account JSON here..."></textarea>
+                        <textarea name="service-account-key" id="gcp-service-account" placeholder="Paste your service account JSON here..." required></textarea>
+                        <small>Download from Google Cloud Console > IAM & Admin > Service Accounts</small>
                     </div>
-                </div>
+                    <button type="submit" class="scan-button">Start GCP Scan</button>
+                </form>
             </section>
 
-            <!-- Scan Button -->
-            <section class="scan-section">
-                <button id="scanButton" class="scan-button" disabled>
-                    <span class="button-text">Scan Credentials</span>
-                    <span class="loading-spinner hidden"></span>
-                </button>
+            <!-- Service Selection -->
+            <section class="service-selection">
+                <h3>Select Services to Scan</h3>
+                
+                <!-- Filter Controls -->
+                <div id="filter-controls" class="filter-controls" style="display: none;">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="category-filter">Filter by Category:</label>
+                            <select id="category-filter">
+                                <option value="all">All Categories</option>
+                                <option value="Compute">Compute</option>
+                                <option value="Storage">Storage</option>
+                                <option value="Database">Database</option>
+                                <option value="Networking">Networking</option>
+                                <option value="Security">Security</option>
+                                <option value="AI/ML">AI/ML</option>
+                                <option value="Development">Development</option>
+                                <option value="Analytics">Analytics</option>
+                                <option value="Media">Media</option>
+                                <option value="Management">Management</option>
+                                <option value="Messaging">Messaging</option>
+                                <option value="Containers">Containers</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="search-services">Search Services:</label>
+                            <input type="text" id="search-services" placeholder="Search services...">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <span id="selected-count">0/0</span> services selected
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button id="select-all-services" class="btn btn-secondary">Select All</button>
+                        <button id="select-none-services" class="btn btn-secondary">Select None</button>
+                    </div>
+                </div>
+                
+                <div id="service-grid" class="service-grid">
+                    <!-- Services will be populated dynamically -->
+                </div>
             </section>
 
             <!-- Results Section -->
-            <section id="results-section" class="results-section hidden">
-                <h2>Scan Results</h2>
-                <div id="services-grid" class="services-grid">
-                    <!-- Services will be populated here -->
-                </div>
+            <section id="scan-results" class="results-section">
+                <!-- Results will be populated here -->
             </section>
 
             <!-- Export Section -->
-            <section id="export-section" class="export-section hidden">
+            <section id="export-section" class="export-section">
                 <h3>Export Results</h3>
                 <div class="export-buttons">
-                    <button id="copyResults" class="export-button">Copy to Clipboard</button>
-                    <button id="downloadResults" class="export-button">Download JSON</button>
+                    <button id="export-json" class="export-button">Export JSON</button>
+                    <button id="export-csv" class="export-button">Export CSV</button>
+                    <button id="clear-results" class="export-button">Clear Results</button>
+                </div>
+            </section>
+
+            <!-- Debug Panel -->
+            <section id="debug-panel" class="debug-section">
+                <div class="debug-header">
+                    <h3>🐛 Debug Console</h3>
+                    <div class="debug-controls">
+                        <button id="toggle-debug" class="debug-button">Show/Hide</button>
+                        <button id="clear-debug" class="debug-button">Clear</button>
+                        <button id="copy-debug" class="debug-button">Copy Logs</button>
+                    </div>
+                </div>
+                <div id="debug-content" class="debug-content" style="display: none;">
+                    <div id="debug-log" class="debug-log"></div>
                 </div>
             </section>
         </div>
     </main>
-
-    <!-- Service Details Modal -->
-    <div id="serviceModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modalTitle">Service Details</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="modalContent">
-                    <!-- Modal content will be populated here -->
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
@@ -162,11 +201,11 @@
     </div>
 
     <!-- JavaScript -->
-    <script src="utils.js"></script>
-    <script src="services.js"></script>
-    <script src="cloud/aws.js"></script>
-    <script src="cloud/azure.js"></script>
-    <script src="cloud/gcp.js"></script>
-    <script src="main.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/scanners/aws-scanner.js"></script>
+    <script src="js/scanners/azure-scanner.js"></script>
+    <script src="js/scanners/gcp-scanner.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html> 
