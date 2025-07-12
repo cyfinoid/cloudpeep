@@ -1072,12 +1072,6 @@ class PeekInTheCloud {
         providerResults.className = 'provider-results';
         providerResults.id = `${provider}-results`;
 
-        // Extract account information
-        const accountInfo = results.account_info || {};
-        const accountId = accountInfo.accountId || 'Unknown';
-        const userType = accountInfo.userType || 'Unknown';
-        const userId = accountInfo.userId || 'Unknown';
-
         const header = document.createElement('div');
         header.className = 'results-header';
         header.innerHTML = `
@@ -1089,22 +1083,6 @@ class PeekInTheCloud {
                     <button class="collapse-all" onclick="app.collapseAllResults('${provider}')">Collapse All</button>
                 </div>
             </div>
-            <div class="account-info">
-                <div class="account-details">
-                    <div class="account-item">
-                        <span class="account-label">Account ID:</span>
-                        <span class="account-value">${accountId}</span>
-                    </div>
-                    <div class="account-item">
-                        <span class="account-label">User Type:</span>
-                        <span class="account-value">${userType}</span>
-                    </div>
-                    <div class="account-item">
-                        <span class="account-label">User ID:</span>
-                        <span class="account-value">${userId}</span>
-                    </div>
-                </div>
-            </div>
         `;
 
         providerResults.appendChild(header);
@@ -1113,8 +1091,8 @@ class PeekInTheCloud {
         resultsContent.className = 'results-content';
 
         Object.entries(results).forEach(([service, data]) => {
-            // Skip unimplemented services - they will be handled separately
-            if (service === 'unimplemented_services') {
+            // Skip unimplemented services and account_info - they will be handled separately
+            if (service === 'unimplemented_services' || service === 'account_info') {
                 return;
             }
 
@@ -1175,6 +1153,46 @@ class PeekInTheCloud {
                 </div>
             `;
             resultsContent.appendChild(unimplementedDiv);
+        }
+
+        // Add account info section at the end
+        if (results.account_info) {
+            const accountInfo = results.account_info;
+            const accountDiv = document.createElement('div');
+            accountDiv.className = 'service-result';
+            accountDiv.innerHTML = `
+                <div class="service-header info" onclick="app.toggleServiceResult(this)">
+                    <span class="service-icon">👤</span>
+                    <span class="service-name">Account Information</span>
+                    <span class="service-status">Account Details</span>
+                    <span class="expand-icon">▶</span>
+                </div>
+                <div class="service-content" style="display: none;">
+                    <div class="account-info-section">
+                        <div class="account-details">
+                            <div class="account-item">
+                                <span class="account-label">Account ID:</span>
+                                <span class="account-value">${accountInfo.accountId || 'Unknown'}</span>
+                            </div>
+                            <div class="account-item">
+                                <span class="account-label">User Type:</span>
+                                <span class="account-value">${accountInfo.userType || 'Unknown'}</span>
+                            </div>
+                            <div class="account-item">
+                                <span class="account-label">User ID:</span>
+                                <span class="account-value">${accountInfo.userId || 'Unknown'}</span>
+                            </div>
+                            ${accountInfo.arn ? `
+                            <div class="account-item">
+                                <span class="account-label">ARN:</span>
+                                <span class="account-value">${accountInfo.arn}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContent.appendChild(accountDiv);
         }
 
         providerResults.appendChild(resultsContent);
@@ -2149,23 +2167,56 @@ class PeekInTheCloud {
         const securityContent = document.createElement('div');
         securityContent.className = 'security-content';
 
-        // Security Findings Section
+        // Security Findings Section with severity summary and color coding
         if (securityAnalysis.securityFindings && securityAnalysis.securityFindings.length > 0) {
+            // Group findings by severity
+            const findingsBySeverity = {
+                critical: [],
+                high: [],
+                medium: [],
+                low: []
+            };
+            
+            securityAnalysis.securityFindings.forEach(finding => {
+                const severity = finding.severity || 'medium';
+                if (findingsBySeverity[severity]) {
+                    findingsBySeverity[severity].push(finding);
+                }
+            });
+            
+            // Calculate summary counts
+            const summaryCounts = {
+                critical: findingsBySeverity.critical.length,
+                high: findingsBySeverity.high.length,
+                medium: findingsBySeverity.medium.length,
+                low: findingsBySeverity.low.length
+            };
+            
             const findingsSection = document.createElement('div');
             findingsSection.className = 'security-section';
             findingsSection.innerHTML = `
                 <h4>🔍 Security Findings</h4>
+                <div class="findings-summary-header">
+                    <span class="finding-count critical">${summaryCounts.critical} Critical</span>
+                    <span class="finding-count high">${summaryCounts.high} High</span>
+                    <span class="finding-count medium">${summaryCounts.medium} Medium</span>
+                    <span class="finding-count low">${summaryCounts.low} Low</span>
+                </div>
                 <div class="findings-container">
-                    ${securityAnalysis.securityFindings.map(finding => this.formatSecurityFinding(finding)).join('')}
+                    ${this.formatFindingsBySeverity(findingsBySeverity)}
                 </div>
             `;
             securityContent.appendChild(findingsSection);
         }
 
-        // Threat Assessment Section
+        // Threat Assessment Section with resource details
         if (securityAnalysis.threatAssessment) {
             const threatSection = document.createElement('div');
             threatSection.className = 'security-section';
+            
+            // Extract resource types from attack vectors
+            const affectedResourceTypes = this.extractAffectedResourceTypes(securityAnalysis.threatAssessment);
+            
             threatSection.innerHTML = `
                 <h4>️ Threat Assessment</h4>
                 <div class="threat-summary">
@@ -2175,6 +2226,14 @@ class PeekInTheCloud {
                         <span class="threat-count medium">${securityAnalysis.threatAssessment.mediumThreats} Medium</span>
                         <span class="threat-count low">${securityAnalysis.threatAssessment.lowThreats} Low</span>
                     </div>
+                    ${affectedResourceTypes.length > 0 ? `
+                    <div class="affected-resources">
+                        <h5>Affected Resource Types:</h5>
+                        <div class="resource-types-list">
+                            ${affectedResourceTypes.map(type => `<span class="resource-type">${type}</span>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
                 ${securityAnalysis.threatAssessment.attackVectors && securityAnalysis.threatAssessment.attackVectors.length > 0 ? `
                     <div class="attack-vectors">
@@ -2225,15 +2284,12 @@ class PeekInTheCloud {
             });
 
             if (securityRecommendations.length > 0) {
-                console.log('[SECURITY] Filtered recommendations:', securityRecommendations);
-                
                 const recommendationsSection = document.createElement('div');
                 recommendationsSection.className = 'security-section';
                 recommendationsSection.innerHTML = `
                     <h4>💡 Security Recommendations</h4>
                     <div class="recommendations-container">
                         ${securityRecommendations.map(rec => {
-                            console.log('[SECURITY] Processing recommendation:', rec);
                             const actions = Array.isArray(rec.actions) ? rec.actions : [];
                             
                             return `
@@ -2277,6 +2333,51 @@ class PeekInTheCloud {
         if (score >= 60) return 'high';
         if (score >= 40) return 'medium';
         return 'low';
+    }
+
+    // Helper method to format findings by severity
+    formatFindingsBySeverity(findingsBySeverity) {
+        const severityOrder = ['critical', 'high', 'medium', 'low'];
+        let html = '';
+        
+        severityOrder.forEach(severity => {
+            const findings = findingsBySeverity[severity];
+            if (findings && findings.length > 0) {
+                html += `
+                    <div class="severity-group ${severity}">
+                        <h5 class="severity-title ${severity}">${this.capitalizeFirst(severity)} (${findings.length})</h5>
+                        <div class="findings-list">
+                            ${findings.map(finding => this.formatSecurityFinding(finding)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        return html;
+    }
+
+    // Helper method to extract affected resource types from threat assessment
+    extractAffectedResourceTypes(threatAssessment) {
+        const resourceTypes = new Set();
+        
+        if (threatAssessment.attackVectors) {
+            threatAssessment.attackVectors.forEach(vector => {
+                if (vector.type) {
+                    resourceTypes.add(vector.type.replace(/_/g, ' ').toUpperCase());
+                }
+            });
+        }
+        
+        if (threatAssessment.threatPaths) {
+            threatAssessment.threatPaths.forEach(path => {
+                if (path.type) {
+                    resourceTypes.add(path.type.replace(/_/g, ' ').toUpperCase());
+                }
+            });
+        }
+        
+        return Array.from(resourceTypes);
     }
 }
 

@@ -2092,3 +2092,131 @@ body {
         padding: 0.3rem 0.6rem;
     }
 } 
+
+/* Findings Summary Header */
+.findings-summary-header {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.finding-count {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.finding-count.critical {
+    background: #dc3545;
+    color: white;
+}
+
+.finding-count.high {
+    background: #fd7e14;
+    color: white;
+}
+
+.finding-count.medium {
+    background: #ffc107;
+    color: #212529;
+}
+
+.finding-count.low {
+    background: #28a745;
+    color: white;
+}
+
+/* Severity Groups */
+.severity-group {
+    margin-bottom: 1.5rem;
+}
+
+.severity-title {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.severity-title.critical {
+    background: #dc3545;
+    color: white;
+}
+
+.severity-title.high {
+    background: #fd7e14;
+    color: white;
+}
+
+.severity-title.medium {
+    background: #ffc107;
+    color: #212529;
+}
+
+.severity-title.low {
+    background: #28a745;
+    color: white;
+}
+
+/* Affected Resources */
+.affected-resources {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.affected-resources h5 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.resource-types-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.resource-type {
+    padding: 0.25rem 0.5rem;
+    background: #e9ecef;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: #495057;
+}
+
+/* Account Info Section */
+.account-info-section {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.account-details {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.account-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.account-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.account-value {
+    color: #6c757d;
+    font-family: 'Courier New', monospace;
+} 
