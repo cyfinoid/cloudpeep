@@ -107,7 +107,22 @@ class PeekInTheCloud {
         
         if (serviceIcon) {
             const serviceInfo = CLOUD_SERVICES[this.currentProvider]?.services[progress.currentService];
-            serviceIcon.textContent = serviceInfo?.icon || '🔍';
+            const iconPath = serviceInfo?.icon || '🔍';
+            
+            // Clear existing content
+            serviceIcon.innerHTML = '';
+            
+            if (iconPath.startsWith('icons/')) {
+                // Use SVG icon
+                const img = document.createElement('img');
+                img.src = iconPath;
+                img.alt = progress.currentService || 'Service';
+                img.className = 'service-icon-svg';
+                serviceIcon.appendChild(img);
+            } else {
+                // Use emoji icon
+                serviceIcon.textContent = iconPath;
+            }
         }
         if (serviceName) serviceName.textContent = progress.currentService || 'Initializing...';
         if (serviceStatus) serviceStatus.textContent = progress.currentStatus;
