@@ -23,11 +23,11 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - ✅ **Enhanced resource analysis** - detailed security analysis of individual resources
 - ✅ **Attack surface analysis** - identify publicly accessible and over-privileged resources
 - ✅ **Security posture scoring** - calculate overall security scores and risk levels
-- ✅ **Compliance mapping** - CIS benchmark compliance checking
 - ✅ **Real-time debugging** - comprehensive logging and progress tracking
 - ✅ **Export results** - download or copy scan results
 - ✅ **Responsive design** - works on desktop and mobile
 - ✅ **Offline capability** - with appropriate warnings
+- ✅ **Honeytoken detection** - advanced canary token detection with warnings
 
 ## 🚀 Quick Start
 
@@ -191,12 +191,6 @@ Click on any accessible service to see:
 - **Threat Detection** - Identify attack vectors and threat paths
 - **Security Findings** - Detailed analysis of security issues by severity
 
-### Compliance Framework Analysis
-- **HIPAA Compliance** - Health Insurance Portability and Accountability Act checks
-- **PCI DSS Compliance** - Payment Card Industry Data Security Standard validation
-- **CIS Benchmarks** - Center for Internet Security benchmark compliance
-- **Compliance Scoring** - Individual framework scores and recommendations
-
 ### Threat Assessment
 - **Attack Surface Analysis** - Identify publicly exposed resources
 - **Threat Path Mapping** - Map potential attack paths and escalation routes
@@ -206,7 +200,6 @@ Click on any accessible service to see:
 ### Security Recommendations
 - **Prioritized Actions** - Critical, High, Medium priority recommendations
 - **Remediation Steps** - Specific actions to improve security posture
-- **Compliance Guidance** - Steps to achieve regulatory compliance
 - **Best Practices** - Industry-standard security recommendations
 
 ### Resource Security Analysis
