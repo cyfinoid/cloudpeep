@@ -303,6 +303,18 @@ class AWSScanner {
                 const regionInstances = [];
                 for (const reservation of instancesData.Reservations) {
                     for (const instance of reservation.Instances) {
+                        // Format block device mappings
+                        const blockDeviceMappings = instance.BlockDeviceMappings ? 
+                            instance.BlockDeviceMappings.map(device => 
+                                `${device.DeviceName}: ${device.Ebs ? device.Ebs.VolumeId : 'N/A'}`
+                            ).join(', ') : 'None';
+                        
+                        // Format security groups
+                        const securityGroups = instance.SecurityGroups ? 
+                            instance.SecurityGroups.map(sg => 
+                                `${sg.GroupName} (${sg.GroupId})`
+                            ).join(', ') : 'None';
+                        
                         regionInstances.push({
                             instanceId: instance.InstanceId,
                             instanceType: instance.InstanceType,
@@ -311,10 +323,10 @@ class AWSScanner {
                             publicIpAddress: instance.PublicIpAddress,
                             privateIpAddress: instance.PrivateIpAddress,
                             iamInstanceProfile: instance.IamInstanceProfile ? instance.IamInstanceProfile.Arn : null,
-                            blockDeviceMappings: instance.BlockDeviceMappings,
+                            blockDeviceMappings: blockDeviceMappings,
                             vpcId: instance.VpcId,
                             subnetId: instance.SubnetId,
-                            securityGroups: instance.SecurityGroups,
+                            securityGroups: securityGroups,
                             region: region
                         });
                     }
@@ -490,6 +502,12 @@ class AWSScanner {
                         const envVarSummary = envVarCount > 0 ? 
                             `${envVarCount} variables` : 'None';
                         
+                        // Format environment variables as a readable string
+                        const envVarString = Object.keys(environmentVariables).length > 0 ? 
+                            Object.entries(environmentVariables)
+                                .map(([key, value]) => `${key}=${value}`)
+                                .join(', ') : 'None';
+                        
                         functions.push({
                             functionName: func.FunctionName,
                             runtime: func.Runtime,
@@ -499,10 +517,8 @@ class AWSScanner {
                             timeout: functionConfig.Timeout,
                             memorySize: functionConfig.MemorySize,
                             role: functionConfig.Role,
-                            environmentVariables: envVarSummary,
+                            environmentVariables: envVarString,
                             sensitiveEnvironmentVariables: sensitiveVars.length > 0 ? sensitiveVars.join(', ') : 'None',
-                            environmentVariables: environmentVariables,
-                            sensitiveEnvironmentVariables: sensitiveVars,
                             hasEnvironmentVariables: Object.keys(environmentVariables).length > 0,
                             region: region
                         });
@@ -518,8 +534,8 @@ class AWSScanner {
                             timeout: null,
                             memorySize: null,
                             role: null,
-                            environmentVariables: {},
-                            sensitiveEnvironmentVariables: [],
+                            environmentVariables: 'None',
+                            sensitiveEnvironmentVariables: 'None',
                             hasEnvironmentVariables: false,
                             region: region
                         });

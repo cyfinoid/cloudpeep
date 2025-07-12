@@ -1146,7 +1146,7 @@ class PeekInTheCloud {
                     <span class="service-status">${this.getStatusText(data)}</span>
                     <span class="expand-icon">▶</span>
                 </div>
-                <div class="service-content">
+                <div class="service-content" style="display: none;">
                     ${content}
                 </div>
             `;
@@ -1165,7 +1165,7 @@ class PeekInTheCloud {
                     <span class="service-status">${results.unimplemented_services.length} services</span>
                     <span class="expand-icon">▶</span>
                 </div>
-                <div class="service-content">
+                <div class="service-content" style="display: none;">
                     <div class="info-message">
                         <p>The following services are not yet implemented in this version:</p>
                         <ul>
@@ -1323,7 +1323,7 @@ class PeekInTheCloud {
         const content = header.nextElementSibling;
         const icon = header.querySelector('.expand-icon');
         
-        if (content.style.display === 'none') {
+        if (content.style.display === 'none' || content.style.display === '') {
             content.style.display = 'block';
             icon.textContent = '▼';
         } else {
