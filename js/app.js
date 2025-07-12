@@ -16,6 +16,7 @@ class PeekInTheCloud {
         this.securityEngine = new SecurityRuleEngine();
         this.resourceMapper = new ResourceMapper();
         this.enhancedAnalyzer = new EnhancedAnalyzer();
+        this.currentHoneytokenInfo = null; // Track honeytoken detection for current scan
         
         // Progress tracking
         this.scanProgress = {
@@ -168,6 +169,12 @@ class PeekInTheCloud {
         const proceedBtn = document.getElementById('proceedHoneytokenScan');
         const cancelBtn = document.getElementById('cancelHoneytokenScan');
 
+        // Hide loading overlay first
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('hidden');
+        }
+
         // Update modal content
         if (honeytokenInfo.type === 'thinkst') {
             canaryType.textContent = 'Thinkst Canary (canarytokens.org)';
@@ -192,6 +199,9 @@ class PeekInTheCloud {
             modal.classList.add('hidden');
             proceedBtn.removeEventListener('click', handleProceed);
             cancelBtn.removeEventListener('click', handleCancel);
+            // Reset scanning state when cancelled
+            this.isScanning = false;
+            this.updateUI();
             onCancel();
         };
 
@@ -223,31 +233,7 @@ class PeekInTheCloud {
         resultsContainer.insertBefore(banner, resultsContainer.firstChild);
     }
 
-    /**
-     * Test honeytoken detection (for debugging)
-     */
-    testHoneytokenDetection() {
-        console.log('Testing honeytoken detection...');
-        
-        // Test with a known Thinkst canary token
-        const testCredentials = {
-            accessKeyId: 'AKIAXYZDQCEN4B6JSJQI', // This should extract account ID that matches a canary
-            secretAccessKey: 'test-secret'
-        };
-        
-        const result = this.checkForHoneytoken('aws', testCredentials);
-        console.log('Honeytoken detection result:', result);
-        
-        if (result.isHoneytoken) {
-            console.log('✅ Honeytoken detected correctly!');
-            this.showHoneytokenWarning(result, 
-                () => console.log('User chose to proceed'),
-                () => console.log('User chose to cancel')
-            );
-        } else {
-            console.log('❌ Honeytoken not detected');
-        }
-    }
+
 
     setupEventListeners() {
         // Provider selection
@@ -406,12 +392,20 @@ class PeekInTheCloud {
             if (honeytokenInfo.isHoneytoken) {
                 console.log(`[${scanId}] ⚠️ Honeytoken detected:`, honeytokenInfo);
                 
+                // Store honeytoken info for later use in results display
+                this.currentHoneytokenInfo = honeytokenInfo;
+                
                 // Show honeytoken warning modal and wait for user decision
                 return new Promise((resolve, reject) => {
                     this.showHoneytokenWarning(honeytokenInfo, 
                         // User chose to proceed
                         async () => {
                             console.log(`[${scanId}] ✅ User chose to proceed with honeytoken scan`);
+                            // Show loading overlay again for the scan
+                            const loadingOverlay = document.getElementById('loadingOverlay');
+                            if (loadingOverlay) {
+                                loadingOverlay.classList.remove('hidden');
+                            }
                             try {
                                 await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
                                 resolve();
@@ -423,12 +417,16 @@ class PeekInTheCloud {
                         () => {
                             console.log(`[${scanId}] ❌ User cancelled honeytoken scan`);
                             this.showNotification('Scan cancelled due to honeytoken detection', 'warning');
+                            // Clear honeytoken info since scan was cancelled
+                            this.currentHoneytokenInfo = null;
                             resolve();
                         }
                     );
                 });
             } else {
                 console.log(`[${scanId}] ✅ No honeytoken detected, proceeding with scan`);
+                // Clear any previous honeytoken info
+                this.currentHoneytokenInfo = null;
             }
 
             // Continue with scan
@@ -513,6 +511,13 @@ class PeekInTheCloud {
             this.saveResultsToStorage(provider, results);
             
             this.displayResults(provider, results);
+            
+            // Add honeytoken banner if this was a honeytoken scan
+            if (this.currentHoneytokenInfo && this.currentHoneytokenInfo.isHoneytoken) {
+                this.addHoneytokenBanner(provider, this.currentHoneytokenInfo);
+                // Clear the honeytoken info after displaying
+                this.currentHoneytokenInfo = null;
+            }
             
             // Show analysis options
             this.displayAnalysisOptions(provider);
