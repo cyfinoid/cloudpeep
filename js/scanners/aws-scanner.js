@@ -33,16 +33,26 @@ class AWSScanner {
             await this.initializeSDK(credentials);
             console.log(`[${scanId}] ✅ AWS SDK initialized successfully`);
             
+            // Detect available services at runtime
+            console.log(`[${scanId}] 🔍 Detecting available AWS services...`);
+            const { availableServices, unavailableServices } = this.detectAvailableServices();
+            console.log(`[${scanId}] ✅ Service detection completed:`, {
+                available: availableServices.length,
+                unavailable: unavailableServices.length,
+                total: availableServices.length + unavailableServices.length
+            });
+            
             // Extract account information
             console.log(`[${scanId}] 🔍 Extracting account information...`);
             await this.extractAccountInfo();
             console.log(`[${scanId}] ✅ Account information extracted:`, this.accountInfo);
             
-            // Get available services
-            const services = selectedServices || this.getAvailableServices();
+            // Get services to scan (use detected available services if no specific selection)
+            const services = selectedServices || availableServices;
             console.log(`[${scanId}] 📋 Services to scan: ${services.length}`, {
                 services: services,
-                selectedServices: selectedServices ? selectedServices.length : 'ALL'
+                selectedServices: selectedServices ? selectedServices.length : 'ALL',
+                availableServices: availableServices.length
             });
             
             // Scan each service
@@ -164,8 +174,13 @@ class AWSScanner {
         }
     }
 
-    getAvailableServices() {
-        return [
+    /**
+     * Detect which AWS services are available in the current SDK version
+     * @returns {Object} Object containing available and unavailable services
+     */
+    detectAvailableServices() {
+        // List of all AWS services we want to check
+        const allServices = [
             'ec2', 's3', 'rds', 'lambda', 'cloudfront', 'dynamodb', 'iam',
             'sns', 'sqs', 'ecr', 'elasticbeanstalk', 'route53', 'cloudwatch',
             'codepipeline', 'sagemaker', 'secretsmanager', 'glue', 'stepfunctions',
@@ -177,13 +192,47 @@ class AWSScanner {
             'opsworks', 'codecommit', 'appmesh', 'backup', 'mediastore',
             'lightsail', 'batch', 'elasticsearch', 'neptune', 'docdb', 'timestream',
             'qldb', 'keyspaces', 'memorydb', 'opensearch', 'mwaa', 'amplify',
-            'apprunner', 'lambda@edge', 'cloudhsm', 'guardduty', 'macie', 'waf',
-            'shield', 'config', 'inspector', 'artifact', 'servicecatalog', 'ram',
+            'apprunner', 'cloudhsm', 'guardduty', 'macie', 'waf', 'shield', 
+            'config', 'inspector', 'artifact', 'servicecatalog', 'ram',
             'vpc', 'directconnect', 'transitgateway', 'vpn', 'natgateway',
-            'elasticip', 'loadbalancer', 'autoscaling', 'ec2spot', 'lightsail',
-            'batch', 'elasticsearch', 'neptune', 'docdb', 'timestream', 'qldb',
-            'keyspaces', 'memorydb', 'opensearch', 'mwaa', 'amplify', 'apprunner'
+            'elasticip', 'loadbalancer', 'autoscaling', 'ec2spot'
         ];
+
+        const availableServices = [];
+        const unavailableServices = [];
+
+        console.log('🔍 Detecting AWS service availability...');
+        
+        for (const service of allServices) {
+            const serviceName = service.toUpperCase();
+            
+            if (typeof AWS[serviceName] === 'function') {
+                availableServices.push(service);
+                console.log(`✅ ${service} (${serviceName}) - Available`);
+            } else {
+                unavailableServices.push(service);
+                console.log(`❌ ${service} (${serviceName}) - Not available`);
+            }
+        }
+
+        console.log(`📊 Service detection summary:`, {
+            total: allServices.length,
+            available: availableServices.length,
+            unavailable: unavailableServices.length,
+            availableServices: availableServices,
+            unavailableServices: unavailableServices
+        });
+
+        return { availableServices, unavailableServices };
+    }
+
+    /**
+     * Get list of all services (for backward compatibility)
+     * @returns {Array} List of all services
+     */
+    getAvailableServices() {
+        const { availableServices } = this.detectAvailableServices();
+        return availableServices;
     }
 
     async scanService(service) {
@@ -1376,6 +1425,16 @@ class AWSScanner {
         if (this.accountInfo) {
             finalResults['account_info'] = this.accountInfo;
         }
+
+        // Add service detection results
+        const { availableServices, unavailableServices } = this.detectAvailableServices();
+        finalResults['service_detection'] = {
+            total: availableServices.length + unavailableServices.length,
+            available: availableServices.length,
+            unavailable: unavailableServices.length,
+            available_services: availableServices,
+            unavailable_services: unavailableServices
+        };
 
         // Add grouped unimplemented services if any exist
         if (this.unimplementedServices && this.unimplementedServices.length > 0) {
