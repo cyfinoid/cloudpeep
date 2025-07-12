@@ -217,12 +217,26 @@ class ThreatDetector {
         if (scanResults.ec2 && scanResults.ec2.instances) {
             scanResults.ec2.instances.forEach(instance => {
                 if (instance.blockDeviceMappings) {
-                    instance.blockDeviceMappings.forEach(device => {
-                        if (device.ebs && !device.ebs.encrypted) {
+                    // Handle different formats of blockDeviceMappings
+                    let blockDevices = [];
+                    
+                    if (typeof instance.blockDeviceMappings === 'string') {
+                        // If it's a formatted string, we can't easily check encryption
+                        console.warn(`[THREAT] Block device mappings for ${instance.instanceId} is a string, cannot check encryption`);
+                    } else if (Array.isArray(instance.blockDeviceMappings)) {
+                        blockDevices = instance.blockDeviceMappings;
+                    } else {
+                        console.warn(`[THREAT] Unknown block device mappings format for ${instance.instanceId}:`, typeof instance.blockDeviceMappings);
+                    }
+                    
+                    // Check encryption for array format
+                    blockDevices.forEach(device => {
+                        if (device && device.ebs && !device.ebs.encrypted) {
+                            const volumeId = device.ebs.volumeId || 'unknown';
                             unencryptedResources.push({
                                 type: 'ebs_volume',
-                                id: device.ebs.volumeId,
-                                description: `EBS volume ${device.ebs.volumeId} is not encrypted`
+                                id: volumeId,
+                                description: `EBS volume ${volumeId} is not encrypted`
                             });
                         }
                     });

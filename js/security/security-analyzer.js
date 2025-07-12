@@ -29,7 +29,6 @@ class SecurityAnalyzer {
             provider: provider,
             overallScore: 0,
             securityFindings: [],
-            complianceResults: {},
             threatAssessment: {},
             recommendations: [],
             riskScore: 0
@@ -41,10 +40,7 @@ class SecurityAnalyzer {
         // 2. Security Findings Analysis
         analysis.securityFindings = this.analyzeSecurityFindings(scanResults, provider);
         
-        // 3. Compliance Analysis
-        analysis.complianceResults = await this.analyzeCompliance(scanResults, provider);
-        
-        // 4. Threat Assessment
+        // 3. Threat Assessment (removed compliance analysis)
         if (this.threatDetector && typeof this.threatDetector.assessThreats === 'function') {
             analysis.threatAssessment = this.threatDetector.assessThreats(scanResults, provider);
         } else {
@@ -58,14 +54,14 @@ class SecurityAnalyzer {
             };
         }
         
-        // 5. Risk Assessment
+        // 4. Risk Assessment
         if (this.riskAssessor && typeof this.riskAssessor.calculateRiskScore === 'function') {
             analysis.riskScore = this.riskAssessor.calculateRiskScore(scanResults, analysis);
         } else {
             analysis.riskScore = 0;
         }
         
-        // 6. Generate Recommendations
+        // 5. Generate Recommendations
         analysis.recommendations = this.generateRecommendations(analysis);
         
         console.log(`🔒 Security analysis complete. Overall score: ${analysis.overallScore}/100`);
@@ -204,9 +200,22 @@ class SecurityAnalyzer {
                 });
             }
 
-            // Check for unencrypted volumes
-            if (instance.blockDeviceMappings && Array.isArray(instance.blockDeviceMappings)) {
-                instance.blockDeviceMappings.forEach(device => {
+            // Check for unencrypted volumes - handle both string and array formats
+            if (instance.blockDeviceMappings) {
+                let blockDevices = [];
+                
+                // Handle different formats
+                if (typeof instance.blockDeviceMappings === 'string') {
+                    // If it's a formatted string, we can't easily check encryption
+                    console.warn(`[SECURITY] Block device mappings for ${instanceId} is a string, cannot check encryption`);
+                } else if (Array.isArray(instance.blockDeviceMappings)) {
+                    blockDevices = instance.blockDeviceMappings;
+                } else {
+                    console.warn(`[SECURITY] Unknown block device mappings format for ${instanceId}:`, typeof instance.blockDeviceMappings);
+                }
+                
+                // Check encryption for array format
+                blockDevices.forEach(device => {
                     if (device && device.ebs && !device.ebs.encrypted) {
                         const volumeId = device.ebs.volumeId || 'unknown';
                         findings.push({
@@ -227,7 +236,18 @@ class SecurityAnalyzer {
                     severity: 'medium',
                     resource: instanceId,
                     description: `EC2 instance ${instanceId} has no IAM role attached`,
-                    recommendation: 'Attach appropriate IAM roles to EC2 instances'
+                    recommendation: 'Attach appropriate IAM role with least privilege permissions'
+                });
+            }
+
+            // Check for stopped instances (potential security risk)
+            if (instance.state && instance.state.toLowerCase() === 'stopped') {
+                findings.push({
+                    type: 'stopped_instance',
+                    severity: 'low',
+                    resource: instanceId,
+                    description: `EC2 instance ${instanceId} is stopped`,
+                    recommendation: 'Review stopped instances and terminate if not needed'
                 });
             }
         });
@@ -558,12 +578,12 @@ class SecurityAnalyzer {
     analyzeLambdaSecurity(data) {
         const findings = [];
         
-        if (!data.functions) return findings;
+        if (!data.functions || !Array.isArray(data.functions)) {
+            return findings;
+        }
 
         data.functions.forEach(func => {
-            // Skip if function is missing basic info
-            if (!func || !func.functionName) {
-                console.warn('[SECURITY] Lambda function missing functionName:', func);
+            if (!func) {
                 return;
             }
 
@@ -582,12 +602,12 @@ class SecurityAnalyzer {
             }
 
             // Check for sensitive environment variables
-            if (func.sensitiveEnvironmentVariables && func.sensitiveEnvironmentVariables.length > 0) {
+            if (func.sensitiveEnvironmentVariables && func.sensitiveEnvironmentVariables !== 'None') {
                 findings.push({
                     type: 'sensitive_environment_variables',
                     severity: 'critical',
                     resource: functionName,
-                    description: `Lambda function ${functionName} has sensitive environment variables: ${func.sensitiveEnvironmentVariables.join(', ')}`,
+                    description: `Lambda function ${functionName} has sensitive environment variables: ${func.sensitiveEnvironmentVariables}`,
                     recommendation: 'Move sensitive data to AWS Secrets Manager or Parameter Store'
                 });
             }
@@ -724,30 +744,7 @@ class SecurityAnalyzer {
             });
         }
 
-        // Compliance recommendations
-        Object.entries(analysis.complianceResults).forEach(([framework, result]) => {
-            if (!result.compliant) {
-                // Extract recommendations from findings
-                const actions = [];
-                if (result.findings && Array.isArray(result.findings)) {
-                    result.findings.forEach(finding => {
-                        if (finding.recommendation) {
-                            actions.push(finding.recommendation);
-                        }
-                    });
-                }
-                
-                recommendations.push({
-                    priority: 'high',
-                    category: 'compliance',
-                    title: `${framework.toUpperCase()} Compliance Issues`,
-                    description: `Address ${framework.toUpperCase()} compliance gaps`,
-                    actions: actions.length > 0 ? actions : [`Review ${framework.toUpperCase()} compliance requirements`]
-                });
-            }
-        });
-
-        // Threat-based recommendations
+        // Threat-based recommendations (removed compliance recommendations)
         if (analysis.threatAssessment.criticalThreats > 0) {
             recommendations.push({
                 priority: 'critical',

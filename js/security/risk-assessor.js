@@ -157,7 +157,24 @@ class RiskAssessor {
         if (scanResults.ec2 && scanResults.ec2.instances) {
             scanResults.ec2.instances.forEach(instance => {
                 if (instance.blockDeviceMappings) {
-                    instance.blockDeviceMappings.forEach(device => {
+                    // Handle different formats of blockDeviceMappings
+                    let blockDevices = [];
+                    
+                    if (typeof instance.blockDeviceMappings === 'string') {
+                        // If it's a formatted string, we can't easily check encryption
+                        console.warn(`[RISK] Block device mappings for ${instance.instanceId} is a string, cannot check encryption`);
+                        // Count as one data resource but can't determine encryption
+                        totalDataResources++;
+                    } else if (Array.isArray(instance.blockDeviceMappings)) {
+                        blockDevices = instance.blockDeviceMappings;
+                    } else {
+                        console.warn(`[RISK] Unknown block device mappings format for ${instance.instanceId}:`, typeof instance.blockDeviceMappings);
+                        // Count as one data resource but can't determine encryption
+                        totalDataResources++;
+                    }
+                    
+                    // Check encryption for array format
+                    blockDevices.forEach(device => {
                         totalDataResources++;
                         if (device.ebs && !device.ebs.encrypted) {
                             unencryptedResources++;
