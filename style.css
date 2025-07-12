@@ -339,17 +339,22 @@ body {
     display: block;
 }
 
-/* Results Section */
+/* Results Section - Hidden by default */
 .results-section {
+    display: none; /* Hidden by default */
+    margin-top: 2rem;
+}
+
+.results-section.has-results {
+    display: block; /* Show when results are available */
+}
+
+.provider-results {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 15px;
     padding: 2rem;
     margin-bottom: 2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-.provider-results {
-    margin-bottom: 2rem;
 }
 
 .results-header {

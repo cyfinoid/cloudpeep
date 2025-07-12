@@ -31,7 +31,6 @@ class PeekInTheCloud {
 
     initialize() {
         this.setupEventListeners();
-        this.setupServiceGrid();
         this.setupDebugConsole();
         this.loadSavedCredentials();
         this.populateStoredResults();
@@ -272,22 +271,6 @@ class PeekInTheCloud {
             this.handleGCPScan();
         });
 
-        // Service selection
-        document.getElementById('service-grid').addEventListener('change', (e) => {
-            if (e.target.type === 'checkbox') {
-                this.handleServiceSelection(e.target);
-            }
-        });
-
-        // Filter controls
-        document.getElementById('category-filter').addEventListener('change', (e) => {
-            this.filterServicesByCategory(e.target.value);
-        });
-
-        document.getElementById('search-services').addEventListener('input', (e) => {
-            this.filterServicesBySearch(e.target.value);
-        });
-
         // Export buttons
         document.getElementById('export-json').addEventListener('click', () => {
             this.exportResults('json');
@@ -302,16 +285,16 @@ class PeekInTheCloud {
             this.clearResults();
         });
 
-        // Select all/none services
-        document.getElementById('select-all-services').addEventListener('click', () => {
-            this.selectAllServices();
+        // Storage buttons
+        document.getElementById('load-stored-results').addEventListener('click', () => {
+            this.showStoredResultsModal();
         });
 
-        document.getElementById('select-none-services').addEventListener('click', () => {
-            this.selectNoServices();
+        document.getElementById('clear-all-stored').addEventListener('click', () => {
+            this.clearAllStoredResults();
         });
 
-        // Debug panel controls
+        // Debug panel
         document.getElementById('toggle-debug').addEventListener('click', () => {
             this.toggleDebugPanel();
         });
@@ -323,67 +306,10 @@ class PeekInTheCloud {
         document.getElementById('copy-debug').addEventListener('click', () => {
             this.copyDebugLog();
         });
-        
-        // Storage management buttons
-        document.getElementById('load-stored-results').addEventListener('click', () => {
-            this.showStoredResultsModal();
-        });
-        
-        document.getElementById('clear-all-stored').addEventListener('click', () => {
-            this.clearAllStoredResults();
-        });
-    }
-
-    setupServiceGrid() {
-        const grid = document.getElementById('service-grid');
-        grid.innerHTML = '';
-        
-        if (!this.currentProvider) return;
-
-        const services = CLOUD_SERVICES[this.currentProvider].services;
-        const categories = new Set();
-        
-        // Collect all categories
-        Object.values(services).forEach(service => {
-            categories.add(service.category);
-        });
-
-        // Create category sections
-        Array.from(categories).sort().forEach(category => {
-            const categoryDiv = document.createElement('div');
-            categoryDiv.className = 'service-category';
-            categoryDiv.innerHTML = `
-                <h4>${SERVICE_CATEGORIES[category]} ${category}</h4>
-                <div class="service-items"></div>
-            `;
-            
-            const serviceItems = categoryDiv.querySelector('.service-items');
-            
-            // Add services for this category
-            Object.entries(services)
-                .filter(([_, service]) => service.category === category)
-                .forEach(([key, service]) => {
-                    const serviceDiv = document.createElement('div');
-                    serviceDiv.className = 'service-item';
-                    serviceDiv.innerHTML = `
-                        <label class="service-checkbox">
-                            <input type="checkbox" value="${key}" data-category="${category}">
-                            <span class="service-name">${service.name}</span>
-                            <span class="service-description">${service.description}</span>
-                        </label>
-                    `;
-                    serviceItems.appendChild(serviceDiv);
-                });
-            
-            grid.appendChild(categoryDiv);
-        });
     }
 
     switchProvider(provider) {
         this.currentProvider = provider;
-        this.selectedServices.clear();
-        this.setupServiceGrid();
-        this.updateUI();
         
         // Show appropriate form
         document.querySelectorAll('.credential-form').forEach(form => {
@@ -393,73 +319,6 @@ class PeekInTheCloud {
         if (provider) {
             document.getElementById(`${provider}-form`).style.display = 'block';
         }
-    }
-
-    handleServiceSelection(checkbox) {
-        const service = checkbox.value;
-        
-        if (checkbox.checked) {
-            this.selectedServices.add(service);
-        } else {
-            this.selectedServices.delete(service);
-        }
-        
-        this.updateServiceCount();
-    }
-
-    selectAllServices() {
-        const checkboxes = document.querySelectorAll('#service-grid input[type="checkbox"]');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = true;
-            this.selectedServices.add(checkbox.value);
-        });
-        this.updateServiceCount();
-    }
-
-    selectNoServices() {
-        const checkboxes = document.querySelectorAll('#service-grid input[type="checkbox"]');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = false;
-            this.selectedServices.delete(checkbox.value);
-        });
-        this.updateServiceCount();
-    }
-
-    updateServiceCount() {
-        const count = this.selectedServices.size;
-        const total = Object.keys(CLOUD_SERVICES[this.currentProvider]?.services || {}).length;
-        document.getElementById('selected-count').textContent = `${count}/${total}`;
-    }
-
-    filterServicesByCategory(category) {
-        const serviceItems = document.querySelectorAll('.service-item');
-        
-        serviceItems.forEach(item => {
-            const checkbox = item.querySelector('input[type="checkbox"]');
-            const itemCategory = checkbox.dataset.category;
-            
-            if (category === 'all' || itemCategory === category) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    }
-
-    filterServicesBySearch(searchTerm) {
-        const serviceItems = document.querySelectorAll('.service-item');
-        const searchLower = searchTerm.toLowerCase();
-        
-        serviceItems.forEach(item => {
-            const serviceName = item.querySelector('.service-name').textContent.toLowerCase();
-            const serviceDesc = item.querySelector('.service-description').textContent.toLowerCase();
-            
-            if (serviceName.includes(searchLower) || serviceDesc.includes(searchLower)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
     }
 
     async handleAWSScan() {
@@ -509,10 +368,8 @@ class PeekInTheCloud {
         const scanId = Utils.SecurityUtils.generateRandomString(8);
         
         console.log(`[${scanId}] 🚀 Starting ${provider.toUpperCase()} scan...`);
-        console.log(`[${scanId}] 📊 Scan configuration:`, {
+        console.log(`[${scanId}]  Scan configuration:`, {
             provider: provider,
-            selectedServices: this.selectedServices.size,
-            totalServices: Object.keys(CLOUD_SERVICES[provider]?.services || {}).length,
             timestamp: new Date().toISOString()
         });
 
@@ -528,11 +385,8 @@ class PeekInTheCloud {
                 loadingOverlay.classList.remove('hidden');
             }
 
-            // Initialize progress tracking
-            const servicesToScan = this.selectedServices.size > 0 
-                ? Array.from(this.selectedServices)
-                : Object.keys(CLOUD_SERVICES[provider]?.services || {});
-            
+            // Initialize progress tracking - scan all services
+            const servicesToScan = Object.keys(CLOUD_SERVICES[provider]?.services || {});
             this.initializeScanProgress(servicesToScan.length);
             this.updateScanStatus('Initializing Scanner...', `Preparing to scan ${servicesToScan.length} services`);
 
@@ -545,62 +399,21 @@ class PeekInTheCloud {
             }
             console.log(`[${scanId}] ✅ Credentials validated successfully`);
 
-            // Check for honeytoken/canary tokens
-            console.log(`[${scanId}] 🔍 Checking for honeytoken/canary tokens...`);
-            const honeytokenInfo = this.checkForHoneytoken(provider, credentials);
-            
-            if (honeytokenInfo.isHoneytoken) {
-                console.log(`[${scanId}] ⚠️ Honeytoken detected:`, honeytokenInfo);
-                
-                // Show warning modal and wait for user decision
-                return new Promise((resolve, reject) => {
-                    this.showHoneytokenWarning(honeytokenInfo, 
-                        () => {
-                            // User chose to proceed
-                            console.log(`[${scanId}] ⚠️ User chose to proceed with honeytoken scan`);
-                            this.addHoneytokenBanner(provider, honeytokenInfo);
-                            this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, resolve, reject);
-                        },
-                        () => {
-                            // User chose to cancel
-                            console.log(`[${scanId}] ❌ User cancelled honeytoken scan`);
-                            this.isScanning = false;
-                            this.updateUI();
-                            this.showNotification('Scan cancelled - honeytoken detected', 'warning');
-                            reject(new Error('Scan cancelled by user due to honeytoken detection'));
-                        }
-                    );
-                });
-            }
+            // Continue with scan
+            await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
 
-            // Continue with the scan
-            this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
         } catch (error) {
-            const scanDuration = Date.now() - scanStartTime;
-            console.error(`[${scanId}] ❌ Scan failed after ${Utils.DataUtils.formatDuration(scanDuration)}:`, error);
-            console.error(`[${scanId}] Error details:`, {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-                provider: provider
-            });
-            
-            // Update error status
-            this.updateScanStatus('Scan Failed', `Error: ${error.message}`);
-            
-            // Hide loading overlay after error
-            setTimeout(() => {
-                const loadingOverlay = document.getElementById('loadingOverlay');
-                if (loadingOverlay) {
-                    loadingOverlay.classList.add('hidden');
-                }
-            }, 2000);
-            
+            console.error(`[${scanId}] ❌ Scan failed:`, error);
             this.showNotification(`Scan failed: ${error.message}`, 'error');
+            
+            // Hide loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
         } finally {
             this.isScanning = false;
             this.updateUI();
-            console.log(`[${scanId}] 🏁 Scan session ended`);
         }
     }
 
@@ -1250,6 +1063,11 @@ class PeekInTheCloud {
 
     displayResults(provider, results) {
         const resultsContainer = document.getElementById('scan-results');
+        
+        // Show the results section
+        resultsContainer.style.display = 'block';
+        resultsContainer.classList.add('has-results');
+        
         const providerResults = document.createElement('div');
         providerResults.className = 'provider-results';
         providerResults.id = `${provider}-results`;
@@ -1326,7 +1144,7 @@ class PeekInTheCloud {
                     <span class="service-icon">${SERVICE_CATEGORIES[serviceCategory] || '🔍'}</span>
                     <span class="service-name">${serviceName}</span>
                     <span class="service-status">${this.getStatusText(data)}</span>
-                    <span class="expand-icon">▼</span>
+                    <span class="expand-icon">▶</span>
                 </div>
                 <div class="service-content">
                     ${content}
@@ -1336,40 +1154,26 @@ class PeekInTheCloud {
             resultsContent.appendChild(serviceDiv);
         });
 
-        // Add grouped unimplemented services section if it exists
-        if (results.unimplemented_services) {
+        // Handle unimplemented services
+        if (results.unimplemented_services && results.unimplemented_services.length > 0) {
             const unimplementedDiv = document.createElement('div');
-            unimplementedDiv.className = 'service-result unimplemented-section';
-            
-            const unimplementedData = results.unimplemented_services;
-            const serviceList = unimplementedData.services.map(service => {
-                const serviceInfo = CLOUD_SERVICES[provider].services[service];
-                return serviceInfo ? serviceInfo.name : service;
-            }).join(', ');
-            
+            unimplementedDiv.className = 'service-result';
             unimplementedDiv.innerHTML = `
                 <div class="service-header info" onclick="app.toggleServiceResult(this)">
                     <span class="service-icon">🚧</span>
                     <span class="service-name">Services Not Implemented Yet</span>
-                    <span class="service-status">${unimplementedData.count} services</span>
-                    <span class="expand-icon">▼</span>
+                    <span class="service-status">${results.unimplemented_services.length} services</span>
+                    <span class="expand-icon">▶</span>
                 </div>
                 <div class="service-content">
                     <div class="info-message">
-                        <p><strong>${unimplementedData.message}</strong></p>
-                        <p>The following ${unimplementedData.count} services are not yet implemented in this version:</p>
-                        <div class="unimplemented-services-list">
-                            ${unimplementedData.services.map(service => {
-                                const serviceInfo = CLOUD_SERVICES[provider].services[service];
-                                const serviceName = serviceInfo ? serviceInfo.name : service;
-                                return `<span class="unimplemented-service">${serviceName}</span>`;
-                            }).join('')}
-                        </div>
-                        <p><em>These services will be implemented in future updates.</em></p>
+                        <p>The following services are not yet implemented in this version:</p>
+                        <ul>
+                            ${results.unimplemented_services.map(service => `<li>${service}</li>`).join('')}
+                        </ul>
                     </div>
                 </div>
             `;
-            
             resultsContent.appendChild(unimplementedDiv);
         }
 
@@ -1639,8 +1443,6 @@ class PeekInTheCloud {
 
     updateUI() {
         const scanButton = document.querySelector('.scan-button');
-        const serviceGrid = document.getElementById('service-grid');
-        const filterControls = document.getElementById('filter-controls');
         
         if (this.isScanning) {
             scanButton.textContent = 'Scanning...';
@@ -1648,15 +1450,6 @@ class PeekInTheCloud {
         } else {
             scanButton.textContent = 'Start Scan';
             scanButton.disabled = false;
-        }
-
-        if (this.currentProvider) {
-            serviceGrid.style.display = 'block';
-            filterControls.style.display = 'block';
-            this.updateServiceCount();
-        } else {
-            serviceGrid.style.display = 'none';
-            filterControls.style.display = 'none';
         }
     }
 

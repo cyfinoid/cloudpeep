@@ -485,6 +485,11 @@ class AWSScanner {
                             }
                         });
                         
+                        // Format environment variables for display
+                        const envVarCount = Object.keys(environmentVariables).length;
+                        const envVarSummary = envVarCount > 0 ? 
+                            `${envVarCount} variables` : 'None';
+                        
                         functions.push({
                             functionName: func.FunctionName,
                             runtime: func.Runtime,
@@ -494,6 +499,8 @@ class AWSScanner {
                             timeout: functionConfig.Timeout,
                             memorySize: functionConfig.MemorySize,
                             role: functionConfig.Role,
+                            environmentVariables: envVarSummary,
+                            sensitiveEnvironmentVariables: sensitiveVars.length > 0 ? sensitiveVars.join(', ') : 'None',
                             environmentVariables: environmentVariables,
                             sensitiveEnvironmentVariables: sensitiveVars,
                             hasEnvironmentVariables: Object.keys(environmentVariables).length > 0,

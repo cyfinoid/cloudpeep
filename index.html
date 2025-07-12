@@ -87,53 +87,6 @@
                 </form>
             </section>
 
-            <!-- Service Selection -->
-            <section class="service-selection">
-                <h3>Select Services to Scan</h3>
-                
-                <!-- Filter Controls -->
-                <div id="filter-controls" class="filter-controls" style="display: none;">
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="category-filter">Filter by Category:</label>
-                            <select id="category-filter">
-                                <option value="all">All Categories</option>
-                                <option value="Compute">Compute</option>
-                                <option value="Storage">Storage</option>
-                                <option value="Database">Database</option>
-                                <option value="Networking">Networking</option>
-                                <option value="Security">Security</option>
-                                <option value="AI/ML">AI/ML</option>
-                                <option value="Development">Development</option>
-                                <option value="Analytics">Analytics</option>
-                                <option value="Media">Media</option>
-                                <option value="Management">Management</option>
-                                <option value="Messaging">Messaging</option>
-                                <option value="Containers">Containers</option>
-                            </select>
-                        </div>
-                        
-                        <div class="filter-group">
-                            <label for="search-services">Search Services:</label>
-                            <input type="text" id="search-services" placeholder="Search services...">
-                        </div>
-                        
-                        <div class="filter-group">
-                            <span id="selected-count">0/0</span> services selected
-                        </div>
-                    </div>
-                    
-                    <div class="filter-actions">
-                        <button id="select-all-services" class="btn btn-secondary">Select All</button>
-                        <button id="select-none-services" class="btn btn-secondary">Select None</button>
-                    </div>
-                </div>
-                
-                <div id="service-grid" class="service-grid">
-                    <!-- Services will be populated dynamically -->
-                </div>
-            </section>
-
             <!-- Results Section -->
             <section id="scan-results" class="results-section">
                 <!-- Results will be populated here -->
