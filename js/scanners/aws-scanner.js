@@ -252,10 +252,17 @@ class AWSScanner {
                 for (const reservation of instancesData.Reservations) {
                     for (const instance of reservation.Instances) {
                         regionInstances.push({
-                            id: instance.InstanceId,
-                            type: instance.InstanceType,
+                            instanceId: instance.InstanceId,
+                            instanceType: instance.InstanceType,
                             state: instance.State.Name,
                             launchTime: instance.LaunchTime,
+                            publicIpAddress: instance.PublicIpAddress,
+                            privateIpAddress: instance.PrivateIpAddress,
+                            iamInstanceProfile: instance.IamInstanceProfile ? instance.IamInstanceProfile.Arn : null,
+                            blockDeviceMappings: instance.BlockDeviceMappings,
+                            vpcId: instance.VpcId,
+                            subnetId: instance.SubnetId,
+                            securityGroups: instance.SecurityGroups,
                             region: region
                         });
                     }
@@ -270,9 +277,11 @@ class AWSScanner {
                 const regionVpcs = [];
                 for (const vpc of vpcsData.Vpcs) {
                     regionVpcs.push({
-                        id: vpc.VpcId,
-                        cidr: vpc.CidrBlock,
+                        vpcId: vpc.VpcId,
+                        cidrBlock: vpc.CidrBlock,
                         state: vpc.State,
+                        isDefault: vpc.IsDefault,
+                        flowLogs: [], // Will be populated separately if needed
                         region: region
                     });
                 }
@@ -483,16 +492,64 @@ class AWSScanner {
             for (const bucket of bucketsData.Buckets) {
                 try {
                     const location = await s3.getBucketLocation({ Bucket: bucket.Name }).promise();
+                    
+                    // Get additional bucket details for security analysis
+                    let encryption = null;
+                    let versioning = null;
+                    let publicAccessBlock = null;
+                    
+                    try {
+                        // Check encryption
+                        const encryptionData = await s3.getBucketEncryption({ Bucket: bucket.Name }).promise();
+                        encryption = encryptionData.ServerSideEncryptionConfiguration;
+                    } catch (error) {
+                        // Bucket might not have encryption configured
+                        encryption = null;
+                    }
+                    
+                    try {
+                        // Check versioning
+                        const versioningData = await s3.getBucketVersioning({ Bucket: bucket.Name }).promise();
+                        versioning = versioningData.Status === 'Enabled';
+                    } catch (error) {
+                        versioning = false;
+                    }
+                    
+                    try {
+                        // Check public access block
+                        const publicAccessData = await s3.getPublicAccessBlock({ Bucket: bucket.Name }).promise();
+                        publicAccessBlock = publicAccessData.PublicAccessBlockConfiguration;
+                    } catch (error) {
+                        // Use default values if public access block is not configured
+                        publicAccessBlock = {
+                            BlockPublicAcls: false,
+                            IgnorePublicAcls: false,
+                            BlockPublicPolicy: false,
+                            RestrictPublicBuckets: false
+                        };
+                    }
+                    
                     buckets.push({
                         name: bucket.Name,
                         creationDate: bucket.CreationDate,
-                        location: location.LocationConstraint || 'us-east-1'
+                        location: location.LocationConstraint || 'us-east-1',
+                        encryption: encryption,
+                        versioning: versioning,
+                        publicAccessBlock: publicAccessBlock
                     });
                 } catch (error) {
                     buckets.push({
                         name: bucket.Name,
                         creationDate: bucket.CreationDate,
-                        location: 'Unknown'
+                        location: 'Unknown',
+                        encryption: null,
+                        versioning: false,
+                        publicAccessBlock: {
+                            BlockPublicAcls: false,
+                            IgnorePublicAcls: false,
+                            BlockPublicPolicy: false,
+                            RestrictPublicBuckets: false
+                        }
                     });
                 }
             }
@@ -540,10 +597,13 @@ class AWSScanner {
                 
                 for (const instance of instancesData.DBInstances) {
                     instances.push({
-                        identifier: instance.DBInstanceIdentifier,
+                        dbInstanceIdentifier: instance.DBInstanceIdentifier,
                         engine: instance.Engine,
-                        status: instance.DBInstanceStatus,
-                        instanceClass: instance.DBInstanceClass,
+                        dbInstanceStatus: instance.DBInstanceStatus,
+                        dbInstanceClass: instance.DBInstanceClass,
+                        publiclyAccessible: instance.PubliclyAccessible,
+                        storageEncrypted: instance.StorageEncrypted,
+                        backupRetentionPeriod: instance.BackupRetentionPeriod,
                         region: region
                     });
                 }
@@ -591,14 +651,15 @@ class AWSScanner {
                 users: [],
                 roles: [],
                 groups: [],
-                policies: []
+                policies: [],
+                accessKeys: []
             };
 
             // Scan users
             const usersData = await iam.listUsers().promise();
             for (const user of usersData.Users) {
                 results.users.push({
-                    name: user.UserName,
+                    userName: user.UserName,
                     arn: user.Arn,
                     createDate: user.CreateDate
                 });
@@ -608,7 +669,7 @@ class AWSScanner {
             const rolesData = await iam.listRoles().promise();
             for (const role of rolesData.Roles) {
                 results.roles.push({
-                    name: role.RoleName,
+                    roleName: role.RoleName,
                     arn: role.Arn,
                     createDate: role.CreateDate
                 });
@@ -618,7 +679,7 @@ class AWSScanner {
             const groupsData = await iam.listGroups().promise();
             for (const group of groupsData.Groups) {
                 results.groups.push({
-                    name: group.GroupName,
+                    groupName: group.GroupName,
                     arn: group.Arn,
                     createDate: group.CreateDate
                 });
@@ -627,11 +688,45 @@ class AWSScanner {
             // Scan policies
             const policiesData = await iam.listPolicies({ Scope: 'Local' }).promise();
             for (const policy of policiesData.Policies) {
-                results.policies.push({
-                    name: policy.PolicyName,
-                    arn: policy.Arn,
-                    createDate: policy.CreateDate
-                });
+                try {
+                    // Get policy document for security analysis
+                    const policyVersion = await iam.getPolicyVersion({
+                        PolicyArn: policy.Arn,
+                        VersionId: policy.DefaultVersionId
+                    }).promise();
+                    
+                    results.policies.push({
+                        policyName: policy.PolicyName,
+                        arn: policy.Arn,
+                        createDate: policy.CreateDate,
+                        document: policyVersion.PolicyVersion.Document
+                    });
+                } catch (error) {
+                    // If we can't get the policy document, still include the policy
+                    results.policies.push({
+                        policyName: policy.PolicyName,
+                        arn: policy.Arn,
+                        createDate: policy.CreateDate,
+                        document: null
+                    });
+                }
+            }
+
+            // Scan access keys for each user
+            for (const user of results.users) {
+                try {
+                    const accessKeysData = await iam.listAccessKeys({ UserName: user.userName }).promise();
+                    for (const key of accessKeysData.AccessKeyMetadata) {
+                        results.accessKeys.push({
+                            accessKeyId: key.AccessKeyId,
+                            userName: key.UserName,
+                            status: key.Status,
+                            createDate: key.CreateDate
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error scanning access keys for user ${user.userName}:`, error);
+                }
             }
 
             this.addResult('iam', results);

@@ -182,26 +182,35 @@ class SecurityAnalyzer {
         if (!data.instances) return findings;
 
         data.instances.forEach(instance => {
+            // Skip if instance is missing basic info
+            if (!instance || !instance.instanceId) {
+                console.warn('[SECURITY] EC2 instance missing instanceId:', instance);
+                return;
+            }
+
+            const instanceId = instance.instanceId;
+            
             // Check for public IP addresses
             if (instance.publicIpAddress) {
                 findings.push({
                     type: 'public_instance',
                     severity: 'high',
-                    resource: instance.instanceId,
-                    description: `EC2 instance ${instance.instanceId} has public IP ${instance.publicIpAddress}`,
+                    resource: instanceId,
+                    description: `EC2 instance ${instanceId} has public IP ${instance.publicIpAddress}`,
                     recommendation: 'Consider using private subnets and NAT gateways for internet access'
                 });
             }
 
             // Check for unencrypted volumes
-            if (instance.blockDeviceMappings) {
+            if (instance.blockDeviceMappings && Array.isArray(instance.blockDeviceMappings)) {
                 instance.blockDeviceMappings.forEach(device => {
-                    if (device.ebs && !device.ebs.encrypted) {
+                    if (device && device.ebs && !device.ebs.encrypted) {
+                        const volumeId = device.ebs.volumeId || 'unknown';
                         findings.push({
                             type: 'unencrypted_volume',
                             severity: 'high',
-                            resource: device.ebs.volumeId,
-                            description: `EBS volume ${device.ebs.volumeId} is not encrypted`,
+                            resource: volumeId,
+                            description: `EBS volume ${volumeId} is not encrypted`,
                             recommendation: 'Enable encryption for all EBS volumes'
                         });
                     }
@@ -213,8 +222,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'missing_iam_role',
                     severity: 'medium',
-                    resource: instance.instanceId,
-                    description: `EC2 instance ${instance.instanceId} has no IAM role attached`,
+                    resource: instanceId,
+                    description: `EC2 instance ${instanceId} has no IAM role attached`,
                     recommendation: 'Attach appropriate IAM roles to EC2 instances'
                 });
             }
@@ -234,6 +243,14 @@ class SecurityAnalyzer {
         if (!data.buckets) return findings;
 
         data.buckets.forEach(bucket => {
+            // Skip if bucket is missing basic info
+            if (!bucket || !bucket.name) {
+                console.warn('[SECURITY] S3 bucket missing name:', bucket);
+                return;
+            }
+
+            const bucketName = bucket.name;
+            
             // Check for public access
             if (bucket.publicAccessBlock) {
                 const block = bucket.publicAccessBlock;
@@ -242,8 +259,8 @@ class SecurityAnalyzer {
                     findings.push({
                         type: 'public_bucket_access',
                         severity: 'critical',
-                        resource: bucket.name,
-                        description: `S3 bucket ${bucket.name} has public access enabled`,
+                        resource: bucketName,
+                        description: `S3 bucket ${bucketName} has public access enabled`,
                         recommendation: 'Enable all public access block settings'
                     });
                 }
@@ -254,8 +271,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'unencrypted_bucket',
                     severity: 'high',
-                    resource: bucket.name,
-                    description: `S3 bucket ${bucket.name} is not encrypted`,
+                    resource: bucketName,
+                    description: `S3 bucket ${bucketName} is not encrypted`,
                     recommendation: 'Enable default encryption for S3 buckets'
                 });
             }
@@ -265,8 +282,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'no_versioning',
                     severity: 'medium',
-                    resource: bucket.name,
-                    description: `S3 bucket ${bucket.name} has versioning disabled`,
+                    resource: bucketName,
+                    description: `S3 bucket ${bucketName} has versioning disabled`,
                     recommendation: 'Enable versioning for data protection'
                 });
             }
@@ -284,13 +301,14 @@ class SecurityAnalyzer {
         const findings = [];
         
         // Check for root account usage
-        if (data.users) {
+        if (data.users && Array.isArray(data.users)) {
             data.users.forEach(user => {
-                if (user.userName === 'root') {
+                if (user && user.userName === 'root') {
+                    const arn = user.arn || 'root';
                     findings.push({
                         type: 'root_account_usage',
                         severity: 'critical',
-                        resource: user.arn,
+                        resource: arn,
                         description: 'Root account is being used',
                         recommendation: 'Use IAM users instead of root account'
                     });
@@ -299,14 +317,15 @@ class SecurityAnalyzer {
         }
 
         // Check for unused access keys
-        if (data.accessKeys) {
+        if (data.accessKeys && Array.isArray(data.accessKeys)) {
             data.accessKeys.forEach(key => {
-                if (key.status === 'Inactive') {
+                if (key && key.status === 'Inactive') {
+                    const keyId = key.accessKeyId || 'unknown';
                     findings.push({
                         type: 'unused_access_key',
                         severity: 'medium',
-                        resource: key.accessKeyId,
-                        description: `Unused access key ${key.accessKeyId}`,
+                        resource: keyId,
+                        description: `Unused access key ${keyId}`,
                         recommendation: 'Remove unused access keys'
                     });
                 }
@@ -314,14 +333,16 @@ class SecurityAnalyzer {
         }
 
         // Check for overly permissive policies
-        if (data.policies) {
+        if (data.policies && Array.isArray(data.policies)) {
             data.policies.forEach(policy => {
-                if (this.isOverlyPermissive(policy)) {
+                if (policy && this.isOverlyPermissive(policy)) {
+                    const policyName = policy.policyName || 'unknown';
+                    const arn = policy.arn || 'unknown';
                     findings.push({
                         type: 'overly_permissive_policy',
                         severity: 'high',
-                        resource: policy.arn,
-                        description: `Policy ${policy.policyName} is overly permissive`,
+                        resource: arn,
+                        description: `Policy ${policyName} is overly permissive`,
                         recommendation: 'Apply principle of least privilege'
                     });
                 }
@@ -368,13 +389,21 @@ class SecurityAnalyzer {
         if (!data.instances) return findings;
 
         data.instances.forEach(instance => {
+            // Skip if instance is missing basic info
+            if (!instance || !instance.dbInstanceIdentifier) {
+                console.warn('[SECURITY] RDS instance missing dbInstanceIdentifier:', instance);
+                return;
+            }
+
+            const instanceId = instance.dbInstanceIdentifier;
+            
             // Check for public accessibility
             if (instance.publiclyAccessible) {
                 findings.push({
                     type: 'public_rds_instance',
                     severity: 'critical',
-                    resource: instance.dbInstanceIdentifier,
-                    description: `RDS instance ${instance.dbInstanceIdentifier} is publicly accessible`,
+                    resource: instanceId,
+                    description: `RDS instance ${instanceId} is publicly accessible`,
                     recommendation: 'Place RDS instances in private subnets'
                 });
             }
@@ -384,8 +413,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'unencrypted_rds',
                     severity: 'high',
-                    resource: instance.dbInstanceIdentifier,
-                    description: `RDS instance ${instance.dbInstanceIdentifier} is not encrypted`,
+                    resource: instanceId,
+                    description: `RDS instance ${instanceId} is not encrypted`,
                     recommendation: 'Enable encryption for RDS instances'
                 });
             }
@@ -395,8 +424,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'no_automated_backups',
                     severity: 'medium',
-                    resource: instance.dbInstanceIdentifier,
-                    description: `RDS instance ${instance.dbInstanceIdentifier} has no automated backups`,
+                    resource: instanceId,
+                    description: `RDS instance ${instanceId} has no automated backups`,
                     recommendation: 'Enable automated backups with appropriate retention'
                 });
             }
@@ -416,13 +445,21 @@ class SecurityAnalyzer {
         if (!data.vpcs) return findings;
 
         data.vpcs.forEach(vpc => {
+            // Skip if VPC is missing basic info
+            if (!vpc || !vpc.vpcId) {
+                console.warn('[SECURITY] VPC missing vpcId:', vpc);
+                return;
+            }
+
+            const vpcId = vpc.vpcId;
+            
             // Check for default VPC usage
             if (vpc.isDefault) {
                 findings.push({
                     type: 'default_vpc_usage',
                     severity: 'medium',
-                    resource: vpc.vpcId,
-                    description: `Default VPC ${vpc.vpcId} is being used`,
+                    resource: vpcId,
+                    description: `Default VPC ${vpcId} is being used`,
                     recommendation: 'Use custom VPCs instead of default VPC'
                 });
             }
@@ -432,8 +469,8 @@ class SecurityAnalyzer {
                 findings.push({
                     type: 'no_flow_logs',
                     severity: 'medium',
-                    resource: vpc.vpcId,
-                    description: `VPC ${vpc.vpcId} has no flow logs enabled`,
+                    resource: vpcId,
+                    description: `VPC ${vpcId} has no flow logs enabled`,
                     recommendation: 'Enable VPC flow logs for network monitoring'
                 });
             }
