@@ -114,7 +114,8 @@ cloudpeep/
 ├── js/
 │   ├── app.js                  # Core application logic
 │   ├── utils.js                # Utility functions
-│   ├── services.js             # Service metadata
+│   ├── services.js             # Broad service catalog
+│   ├── service-metadata.js     # Detailed security metadata
 │   ├── security-rules.js       # Security rule engine
 │   ├── resource-mapper.js      # Resource cross-referencing
 │   ├── enhanced-analyzer.js    # Enhanced resource analysis
@@ -182,31 +183,63 @@ Click on any accessible service to see:
 - Raw API responses
 - Permission levels
 
-## 🔒 Security Analysis Features
+## 🔒 Advanced Security Analysis Features
 
-### Security Rule Engine
-- **CIS Benchmark Compliance** - Check against industry security standards
-- **Security Rules** - 50+ security rules across all cloud providers
-- **Automated Findings** - Identify security issues automatically
-- **Remediation Guidance** - Get specific steps to fix security issues
+### Comprehensive Security Engine
+- **Security Scoring** - Overall security score (0-100) with detailed breakdown
+- **Risk Assessment** - Technical and business impact risk analysis
+- **Threat Detection** - Identify attack vectors and threat paths
+- **Security Findings** - Detailed analysis of security issues by severity
 
-### Resource Cross-Referencing
-- **Resource Mapping** - Map relationships between different services
-- **Attack Surface Analysis** - Identify publicly accessible resources
-- **Permission Escalation Paths** - Find potential privilege escalation routes
-- **Over-Privileged Resources** - Detect resources with excessive permissions
+### Compliance Framework Analysis
+- **HIPAA Compliance** - Health Insurance Portability and Accountability Act checks
+- **PCI DSS Compliance** - Payment Card Industry Data Security Standard validation
+- **CIS Benchmarks** - Center for Internet Security benchmark compliance
+- **Compliance Scoring** - Individual framework scores and recommendations
 
-### Enhanced Resource Analysis
+### Threat Assessment
+- **Attack Surface Analysis** - Identify publicly exposed resources
+- **Threat Path Mapping** - Map potential attack paths and escalation routes
+- **Vulnerability Detection** - Find security vulnerabilities and misconfigurations
+- **Risk Classification** - Critical, High, Medium, Low threat categorization
+
+### Security Recommendations
+- **Prioritized Actions** - Critical, High, Medium priority recommendations
+- **Remediation Steps** - Specific actions to improve security posture
+- **Compliance Guidance** - Steps to achieve regulatory compliance
+- **Best Practices** - Industry-standard security recommendations
+
+### Resource Security Analysis
 - **Individual Resource Scoring** - Security scores for each resource
-- **Detailed Configuration Analysis** - Deep dive into resource settings
-- **Security Posture Overview** - Overall security posture assessment
-- **Risk Level Classification** - Critical, High, Medium, Low risk levels
+- **Configuration Analysis** - Deep dive into resource security settings
+- **Permission Analysis** - Over-privileged resource detection
+- **Encryption Status** - Data encryption compliance checking
 
-### Security Findings
-- **Critical Issues** - Immediate security concerns requiring attention
-- **High Priority** - Significant security risks
-- **Medium Priority** - Security improvements recommended
-- **Low Priority** - Minor security enhancements
+## 🔒 Security Features
+
+### Honeytoken/Canary Token Detection
+PeekInTheCloud includes advanced honeytoken detection to protect users from accidentally triggering security alerts:
+
+- **Real-time Detection**: Automatically detects known honeytoken/canary token accounts
+- **Warning Modal**: Shows detailed warning before scanning canary tokens
+- **Account ID Extraction**: Extracts AWS Account ID from Access Key ID for verification
+- **Known Canary Lists**: Includes comprehensive lists of Thinkst Canary and off-brand canary accounts
+- **User Choice**: Provides clear options to proceed or cancel (defaults to cancel)
+- **Visual Warnings**: Red warning banner in results when canary tokens are scanned
+
+**Supported Canary Services:**
+- Thinkst Canary (canarytokens.org)
+- Off-brand canary tokens
+- Custom canary account detection
+
+**How it works:**
+1. When AWS credentials are entered, the system extracts the Account ID
+2. Checks against known canary account lists
+3. If detected, shows warning modal with details
+4. User can choose to proceed or cancel
+5. If proceeding, adds warning banner to results
+
+This feature helps security researchers and penetration testers avoid accidentally triggering honeytoken alerts while testing discovered credentials.
 
 ## 🔄 Export Options
 
