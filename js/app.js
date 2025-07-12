@@ -767,7 +767,24 @@ class PeekInTheCloud {
      */
     saveResultsToStorage(provider, results) {
         try {
-            const storageKey = `cloudpeep_results_${provider}`;
+            // Extract account ID from results
+            let accountId = 'unknown';
+            if (results.account_info && results.account_info.accountId) {
+                accountId = results.account_info.accountId;
+            } else if (provider === 'aws' && results.sts) {
+                // Try to extract from STS results if available
+                try {
+                    const stsData = results.sts;
+                    if (stsData && stsData.Account) {
+                        accountId = stsData.Account;
+                    }
+                } catch (e) {
+                    console.warn('Could not extract account ID from STS results');
+                }
+            }
+            
+            // Create storage key with provider-accountId format
+            const storageKey = `cloudpeep_results_${provider}-${accountId}`;
             const timestamp = new Date().toISOString();
             
             // Create a sanitized version of results (exclude sensitive data)
@@ -775,6 +792,7 @@ class PeekInTheCloud {
             
             const storageData = {
                 provider: provider,
+                accountId: accountId,
                 timestamp: timestamp,
                 results: sanitizedResults,
                 summary: {
@@ -786,7 +804,7 @@ class PeekInTheCloud {
             };
             
             localStorage.setItem(storageKey, JSON.stringify(storageData));
-            console.log(`[STORAGE] Saved ${provider} results to localStorage`);
+            console.log(`[STORAGE] Saved ${provider}-${accountId} results to localStorage`);
             
             // Update storage summary
             this.updateStorageSummary();
@@ -865,11 +883,45 @@ class PeekInTheCloud {
     /**
      * Load results from localStorage
      * @param {string} provider - Cloud provider
+     * @param {string} accountId - Account ID (optional, will find latest if not provided)
      * @returns {Object|null} Stored results or null
      */
-    loadResultsFromStorage(provider) {
+    loadResultsFromStorage(provider, accountId = null) {
         try {
-            const storageKey = `cloudpeep_results_${provider}`;
+            let storageKey;
+            if (accountId) {
+                storageKey = `cloudpeep_results_${provider}-${accountId}`;
+            } else {
+                // Find the latest results for this provider
+                const keys = Object.keys(localStorage);
+                const providerKeys = keys.filter(key => key.startsWith(`cloudpeep_results_${provider}-`));
+                
+                if (providerKeys.length === 0) {
+                    return null;
+                }
+                
+                // Get the most recent one
+                let latestKey = providerKeys[0];
+                let latestTimestamp = 0;
+                
+                for (const key of providerKeys) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (data && data.timestamp) {
+                            const timestamp = new Date(data.timestamp).getTime();
+                            if (timestamp > latestTimestamp) {
+                                latestTimestamp = timestamp;
+                                latestKey = key;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing stored data:', e);
+                    }
+                }
+                
+                storageKey = latestKey;
+            }
+            
             const storedData = localStorage.getItem(storageKey);
             
             if (storedData) {
@@ -887,7 +939,7 @@ class PeekInTheCloud {
 
     /**
      * Get all stored scan results
-     * @returns {Object} All stored results by provider
+     * @returns {Object} All stored results by provider-accountId
      */
     getAllStoredResults() {
         const results = {};
@@ -895,10 +947,14 @@ class PeekInTheCloud {
         
         keys.forEach(key => {
             if (key.startsWith('cloudpeep_results_')) {
-                const provider = key.replace('cloudpeep_results_', '');
-                const storedData = this.loadResultsFromStorage(provider);
+                const keyParts = key.replace('cloudpeep_results_', '').split('-');
+                const provider = keyParts[0];
+                const accountId = keyParts.slice(1).join('-'); // Handle account IDs with hyphens
+                const providerKey = `${provider}-${accountId}`;
+                
+                const storedData = this.loadResultsFromStorage(provider, accountId);
                 if (storedData) {
-                    results[provider] = storedData;
+                    results[providerKey] = storedData;
                 }
             }
         });
@@ -921,13 +977,29 @@ class PeekInTheCloud {
     /**
      * Clear stored results for a provider
      * @param {string} provider - Cloud provider
+     * @param {string} accountId - Account ID (optional, will clear all for provider if not provided)
      */
-    clearStoredResults(provider) {
+    clearStoredResults(provider, accountId = null) {
         try {
-            const storageKey = `cloudpeep_results_${provider}`;
-            localStorage.removeItem(storageKey);
-            console.log(`[STORAGE] Cleared ${provider} results from localStorage`);
-            this.showNotification(`${provider.toUpperCase()} results cleared from storage`, 'info');
+            if (accountId) {
+                const storageKey = `cloudpeep_results_${provider}-${accountId}`;
+                localStorage.removeItem(storageKey);
+                console.log(`[STORAGE] Cleared ${provider}-${accountId} results from localStorage`);
+                this.showNotification(`${provider.toUpperCase()}-${accountId} results cleared from storage`, 'info');
+            } else {
+                // Clear all results for this provider
+                const keys = Object.keys(localStorage);
+                const providerKeys = keys.filter(key => key.startsWith(`cloudpeep_results_${provider}-`));
+                let clearedCount = 0;
+                
+                for (const key of providerKeys) {
+                    localStorage.removeItem(key);
+                    clearedCount++;
+                }
+                
+                console.log(`[STORAGE] Cleared ${clearedCount} ${provider} results from localStorage`);
+                this.showNotification(`Cleared ${clearedCount} ${provider.toUpperCase()} results from storage`, 'info');
+            }
         } catch (error) {
             console.error('Error clearing stored results:', error);
         }
@@ -958,16 +1030,18 @@ class PeekInTheCloud {
     /**
      * Display stored results for a provider
      * @param {string} provider - Cloud provider
+     * @param {string} accountId - Account ID (optional)
      */
-    displayStoredResults(provider) {
-        const storedData = this.loadResultsFromStorage(provider);
+    displayStoredResults(provider, accountId = null) {
+        const storedData = this.loadResultsFromStorage(provider, accountId);
         
         if (storedData) {
             this.results[provider] = storedData.results;
             this.displayResults(provider, storedData.results);
             this.displayAnalysisOptions(provider);
             
-            this.showNotification(`Loaded ${provider.toUpperCase()} results from storage (${storedData.summary.totalServices} services)`, 'success');
+            const accountInfo = accountId ? `-${accountId}` : '';
+            this.showNotification(`Loaded ${provider.toUpperCase()}${accountInfo} results from storage (${storedData.summary.totalServices} services)`, 'success');
         } else {
             this.showNotification(`No stored results found for ${provider.toUpperCase()}`, 'warning');
         }
@@ -988,22 +1062,27 @@ class PeekInTheCloud {
         }
         
         let html = '';
-        Object.entries(storedResults).forEach(([provider, data]) => {
+        Object.entries(storedResults).forEach(([providerKey, data]) => {
             const date = new Date(data.timestamp).toLocaleDateString();
             const time = new Date(data.timestamp).toLocaleTimeString();
+            
+            // Parse provider and account ID from the key
+            const keyParts = providerKey.split('-');
+            const provider = keyParts[0];
+            const accountId = keyParts.slice(1).join('-');
             
             html += `
                 <div class="stored-result-item">
                     <div class="stored-result-info">
-                        <div class="stored-provider">${provider.toUpperCase()}</div>
+                        <div class="stored-provider">${provider.toUpperCase()}-${accountId}</div>
                         <div class="stored-summary">
                             ${data.summary.totalServices} services • ${data.summary.successfulServices} successful • ${data.summary.failedServices} failed
                         </div>
                         <div class="stored-timestamp">${date} at ${time}</div>
                     </div>
                     <div class="stored-result-actions">
-                        <button class="storage-btn small" onclick="app.displayStoredResults('${provider}')">Load</button>
-                        <button class="storage-btn small danger" onclick="app.clearStoredResults('${provider}')">Clear</button>
+                        <button class="storage-btn small" onclick="app.displayStoredResults('${provider}', '${accountId}')">Load</button>
+                        <button class="storage-btn small danger" onclick="app.clearStoredResults('${provider}', '${accountId}')">Clear</button>
                     </div>
                 </div>
             `;
@@ -1039,14 +1118,19 @@ class PeekInTheCloud {
                     <div class="stored-results-modal-list">
         `;
         
-        Object.entries(storedResults).forEach(([provider, data]) => {
+        Object.entries(storedResults).forEach(([providerKey, data]) => {
             const date = new Date(data.timestamp).toLocaleDateString();
             const time = new Date(data.timestamp).toLocaleTimeString();
             
+            // Parse provider and account ID from the key
+            const keyParts = providerKey.split('-');
+            const provider = keyParts[0];
+            const accountId = keyParts.slice(1).join('-');
+            
             modalHtml += `
-                <div class="stored-result-modal-item" onclick="app.loadStoredResult('${provider}'); this.closest('.modal-overlay').remove();">
+                <div class="stored-result-modal-item" onclick="app.loadStoredResult('${provider}', '${accountId}'); this.closest('.modal-overlay').remove();">
                     <div class="stored-result-modal-info">
-                        <div class="stored-provider-modal">${provider.toUpperCase()}</div>
+                        <div class="stored-provider-modal">${provider.toUpperCase()}-${accountId}</div>
                         <div class="stored-summary-modal">
                             ${data.summary.totalServices} services • ${data.summary.successfulServices} successful • ${data.summary.failedServices} failed
                         </div>
@@ -1072,9 +1156,10 @@ class PeekInTheCloud {
     /**
      * Load stored result and display it
      * @param {string} provider - Cloud provider
+     * @param {string} accountId - Account ID (optional)
      */
-    loadStoredResult(provider) {
-        this.displayStoredResults(provider);
+    loadStoredResult(provider, accountId = null) {
+        this.displayStoredResults(provider, accountId);
         this.populateStoredResults(); // Refresh the list
     }
 
@@ -1169,14 +1254,38 @@ class PeekInTheCloud {
         providerResults.className = 'provider-results';
         providerResults.id = `${provider}-results`;
 
+        // Extract account information
+        const accountInfo = results.account_info || {};
+        const accountId = accountInfo.accountId || 'Unknown';
+        const userType = accountInfo.userType || 'Unknown';
+        const userId = accountInfo.userId || 'Unknown';
+
         const header = document.createElement('div');
         header.className = 'results-header';
         header.innerHTML = `
-            <h3>${CLOUD_SERVICES[provider].icon} ${CLOUD_SERVICES[provider].name} Results</h3>
-            <div class="results-summary">
-                <span class="services-scanned">${Object.keys(results).length} services scanned</span>
-                <button class="expand-all" onclick="app.expandAllResults('${provider}')">Expand All</button>
-                <button class="collapse-all" onclick="app.collapseAllResults('${provider}')">Collapse All</button>
+            <div class="results-header-main">
+                <h3>${CLOUD_SERVICES[provider].icon} ${CLOUD_SERVICES[provider].name} Results</h3>
+                <div class="results-summary">
+                    <span class="services-scanned">${Object.keys(results).length} services scanned</span>
+                    <button class="expand-all" onclick="app.expandAllResults('${provider}')">Expand All</button>
+                    <button class="collapse-all" onclick="app.collapseAllResults('${provider}')">Collapse All</button>
+                </div>
+            </div>
+            <div class="account-info">
+                <div class="account-details">
+                    <div class="account-item">
+                        <span class="account-label">Account ID:</span>
+                        <span class="account-value">${accountId}</span>
+                    </div>
+                    <div class="account-item">
+                        <span class="account-label">User Type:</span>
+                        <span class="account-value">${userType}</span>
+                    </div>
+                    <div class="account-item">
+                        <span class="account-label">User ID:</span>
+                        <span class="account-value">${userId}</span>
+                    </div>
+                </div>
             </div>
         `;
 

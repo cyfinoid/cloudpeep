@@ -14,6 +14,7 @@ class AWSScanner {
         ];
         this.results = {};
         this.currentRegion = 'us-east-1';
+        this.accountInfo = null;
     }
 
     async scan(credentials, selectedServices = null) {
@@ -31,6 +32,11 @@ class AWSScanner {
             console.log(`[${scanId}] 🔧 Initializing AWS SDK...`);
             await this.initializeSDK(credentials);
             console.log(`[${scanId}] ✅ AWS SDK initialized successfully`);
+            
+            // Extract account information
+            console.log(`[${scanId}] 🔍 Extracting account information...`);
+            await this.extractAccountInfo();
+            console.log(`[${scanId}] ✅ Account information extracted:`, this.accountInfo);
             
             // Get available services
             const services = selectedServices || this.getAvailableServices();
@@ -80,7 +86,8 @@ class AWSScanner {
                 totalServices: services.length,
                 successfulServices: successfulServices,
                 failedServices: failedServices,
-                successRate: Math.round((successfulServices / services.length) * 100) + '%'
+                successRate: Math.round((successfulServices / services.length) * 100) + '%',
+                accountInfo: this.accountInfo
             });
             
             return this.getFinalResults();
@@ -110,6 +117,51 @@ class AWSScanner {
             sessionToken: credentials.sessionToken || undefined,
             region: this.currentRegion
         });
+    }
+
+    async extractAccountInfo() {
+        try {
+            const sts = new AWS.STS();
+            const callerIdentity = await sts.getCallerIdentity().promise();
+            
+            this.accountInfo = {
+                accountId: callerIdentity.Account,
+                userId: callerIdentity.UserId,
+                arn: callerIdentity.Arn,
+                userType: this.determineUserType(callerIdentity.Arn),
+                extractedFromKey: Utils.HoneytokenUtils.extractAccountIdFromKey(AWS.config.credentials.accessKeyId)
+            };
+            
+            console.log('Account information extracted:', this.accountInfo);
+        } catch (error) {
+            console.error('Error extracting account information:', error);
+            // Fallback to extracting from access key
+            const extractedAccountId = Utils.HoneytokenUtils.extractAccountIdFromKey(AWS.config.credentials.accessKeyId);
+            this.accountInfo = {
+                accountId: extractedAccountId,
+                userId: 'Unknown',
+                arn: 'Unknown',
+                userType: 'Unknown',
+                extractedFromKey: extractedAccountId,
+                error: error.message
+            };
+        }
+    }
+
+    determineUserType(arn) {
+        if (!arn) return 'Unknown';
+        
+        if (arn.includes(':user/')) {
+            return 'IAM User';
+        } else if (arn.includes(':role/')) {
+            return 'IAM Role';
+        } else if (arn.includes(':assumed-role/')) {
+            return 'Assumed Role';
+        } else if (arn.includes(':root')) {
+            return 'Root User';
+        } else {
+            return 'Unknown';
+        }
     }
 
     getAvailableServices() {
@@ -409,14 +461,62 @@ class AWSScanner {
                 const functionsData = await lambda.listFunctions().promise();
                 
                 for (const func of functionsData.Functions) {
-                    functions.push({
-                        name: func.FunctionName,
-                        runtime: func.Runtime,
-                        handler: func.Handler,
-                        codeSize: func.CodeSize,
-                        description: func.Description,
-                        region: region
-                    });
+                    try {
+                        // Get detailed function configuration including environment variables
+                        const functionConfig = await lambda.getFunctionConfiguration({
+                            FunctionName: func.FunctionName
+                        }).promise();
+                        
+                        // Extract environment variables
+                        const environmentVariables = functionConfig.Environment ? 
+                            functionConfig.Environment.Variables || {} : {};
+                        
+                        // Check for potentially sensitive environment variables
+                        const sensitiveVars = [];
+                        const sensitivePatterns = [
+                            /password/i, /secret/i, /key/i, /token/i, /credential/i,
+                            /api_key/i, /api_secret/i, /access_key/i, /secret_key/i,
+                            /auth/i, /login/i, /private/i, /internal/i
+                        ];
+                        
+                        Object.keys(environmentVariables).forEach(key => {
+                            if (sensitivePatterns.some(pattern => pattern.test(key))) {
+                                sensitiveVars.push(key);
+                            }
+                        });
+                        
+                        functions.push({
+                            functionName: func.FunctionName,
+                            runtime: func.Runtime,
+                            handler: func.Handler,
+                            codeSize: func.CodeSize,
+                            description: func.Description,
+                            timeout: functionConfig.Timeout,
+                            memorySize: functionConfig.MemorySize,
+                            role: functionConfig.Role,
+                            environmentVariables: environmentVariables,
+                            sensitiveEnvironmentVariables: sensitiveVars,
+                            hasEnvironmentVariables: Object.keys(environmentVariables).length > 0,
+                            region: region
+                        });
+                    } catch (error) {
+                        // If we can't get detailed config, still include basic function info
+                        console.warn(`Could not get detailed config for Lambda function ${func.FunctionName}:`, error);
+                        functions.push({
+                            functionName: func.FunctionName,
+                            runtime: func.Runtime,
+                            handler: func.Handler,
+                            codeSize: func.CodeSize,
+                            description: func.Description,
+                            timeout: null,
+                            memorySize: null,
+                            role: null,
+                            environmentVariables: {},
+                            sensitiveEnvironmentVariables: [],
+                            hasEnvironmentVariables: false,
+                            region: region
+                        });
+                    }
                 }
             } catch (error) {
                 console.error(`Error scanning Lambda in ${region}:`, error);
@@ -888,6 +988,11 @@ class AWSScanner {
      */
     getFinalResults() {
         const finalResults = { ...this.results };
+        
+        // Add account information to results
+        if (this.accountInfo) {
+            finalResults['account_info'] = this.accountInfo;
+        }
         
         // Add grouped unimplemented services if any exist
         if (this.unimplementedServices && this.unimplementedServices.length > 0) {

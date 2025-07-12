@@ -163,6 +163,9 @@ class SecurityAnalyzer {
             case 'cloudwatch':
                 findings.push(...this.analyzeCloudWatchSecurity(data));
                 break;
+            case 'lambda':
+                findings.push(...this.analyzeLambdaSecurity(data));
+                break;
             default:
                 // Generic security checks for other services
                 findings.push(...this.analyzeGenericSecurity(data, service));
@@ -543,6 +546,85 @@ class SecurityAnalyzer {
                 recommendation: 'Configure CloudWatch logs for service monitoring'
             });
         }
+
+        return findings;
+    }
+
+    /**
+     * Analyze Lambda security
+     * @param {Object} data - Lambda data
+     * @returns {Array} Security findings
+     */
+    analyzeLambdaSecurity(data) {
+        const findings = [];
+        
+        if (!data.functions) return findings;
+
+        data.functions.forEach(func => {
+            // Skip if function is missing basic info
+            if (!func || !func.functionName) {
+                console.warn('[SECURITY] Lambda function missing functionName:', func);
+                return;
+            }
+
+            const functionName = func.functionName;
+            
+            // Check for exposed environment variables
+            if (func.hasEnvironmentVariables && func.environmentVariables) {
+                const envVarCount = Object.keys(func.environmentVariables).length;
+                findings.push({
+                    type: 'exposed_environment_variables',
+                    severity: 'high',
+                    resource: functionName,
+                    description: `Lambda function ${functionName} has ${envVarCount} environment variables exposed`,
+                    recommendation: 'Review environment variables for sensitive data and consider using AWS Secrets Manager'
+                });
+            }
+
+            // Check for sensitive environment variables
+            if (func.sensitiveEnvironmentVariables && func.sensitiveEnvironmentVariables.length > 0) {
+                findings.push({
+                    type: 'sensitive_environment_variables',
+                    severity: 'critical',
+                    resource: functionName,
+                    description: `Lambda function ${functionName} has sensitive environment variables: ${func.sensitiveEnvironmentVariables.join(', ')}`,
+                    recommendation: 'Move sensitive data to AWS Secrets Manager or Parameter Store'
+                });
+            }
+
+            // Check for excessive timeout
+            if (func.timeout && func.timeout > 900) { // 15 minutes
+                findings.push({
+                    type: 'excessive_timeout',
+                    severity: 'medium',
+                    resource: functionName,
+                    description: `Lambda function ${functionName} has timeout of ${func.timeout} seconds (exceeds 15 minutes)`,
+                    recommendation: 'Consider reducing timeout to improve security and cost efficiency'
+                });
+            }
+
+            // Check for excessive memory allocation
+            if (func.memorySize && func.memorySize > 3008) { // 3GB
+                findings.push({
+                    type: 'excessive_memory',
+                    severity: 'low',
+                    resource: functionName,
+                    description: `Lambda function ${functionName} has ${func.memorySize}MB memory allocation`,
+                    recommendation: 'Review memory allocation for cost optimization'
+                });
+            }
+
+            // Check for missing IAM role
+            if (!func.role) {
+                findings.push({
+                    type: 'missing_iam_role',
+                    severity: 'high',
+                    resource: functionName,
+                    description: `Lambda function ${functionName} has no IAM role attached`,
+                    recommendation: 'Attach appropriate IAM role with least privilege permissions'
+                });
+            }
+        });
 
         return findings;
     }
