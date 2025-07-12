@@ -696,8 +696,9 @@ class PeekInTheCloud {
             localStorage.setItem(storageKey, JSON.stringify(storageData));
             console.log(`[STORAGE] Saved ${provider}-${accountId} results to localStorage`);
             
-            // Update storage summary
+            // Update storage summary and refresh the stored results list
             this.updateStorageSummary();
+            this.populateStoredResults();
             
         } catch (error) {
             console.error('Error saving results to localStorage:', error);
@@ -890,6 +891,9 @@ class PeekInTheCloud {
                 console.log(`[STORAGE] Cleared ${clearedCount} ${provider} results from localStorage`);
                 this.showNotification(`Cleared ${clearedCount} ${provider.toUpperCase()} results from storage`, 'info');
             }
+            
+            // Refresh the stored results list in the UI
+            this.populateStoredResults();
         } catch (error) {
             console.error('Error clearing stored results:', error);
         }
@@ -912,6 +916,9 @@ class PeekInTheCloud {
             
             console.log(`[STORAGE] Cleared ${clearedCount} stored results`);
             this.showNotification(`Cleared ${clearedCount} stored scan results`, 'info');
+            
+            // Refresh the stored results list in the UI
+            this.populateStoredResults();
         } catch (error) {
             console.error('Error clearing all stored results:', error);
         }
