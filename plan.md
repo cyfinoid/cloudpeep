@@ -27,7 +27,7 @@ PeekInTheCloud is a client-side cloud key inspector that allows users to analyze
    - [ ] Create utils.js with common helper functions
    - [ ] Implement credential validation for each provider
    - [ ] Add error handling and user feedback
-   - [ ] Create service metadata structure in services.js
+   - [x] Create service metadata structure in js/services.js and js/service-metadata.js
 
 ### Phase 2: Cloud Provider Integrations
 **Goal**: Implement cloud SDK integrations for each provider
@@ -137,7 +137,8 @@ cloudpeep/
 ├── style.css
 ├── main.js
 ├── utils.js
-├── services.js
+├── js/services.js
+├── js/service-metadata.js
 ├── cloud/
 │   ├── aws.js
 │   ├── azure.js

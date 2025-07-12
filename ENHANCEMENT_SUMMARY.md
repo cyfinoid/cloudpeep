@@ -83,7 +83,8 @@ cloudpeep/
 ├── style.css              # Comprehensive styling
 ├── js/
 │   ├── app.js             # Main application logic
-│   ├── services.js        # Comprehensive service metadata
+│   ├── js/services.js        # Broad service catalog for UI and scanning
+│   ├── js/service-metadata.js # Detailed security/permission metadata
 │   ├── utils.js           # Utility functions
 │   └── scanners/
 │       ├── aws-scanner.js    # 50+ AWS services

@@ -101,7 +101,8 @@
 │
 ├── icons/ # SVG or PNG icons for services
 ├── utils.js # Common helper functions
-├── services.js # Metadata about cloud services
+├── js/services.js # Broad service catalog for UI and scanning
+├── js/service-metadata.js # Detailed security/permission metadata
 └── LICENSE / README.md # MIT license, basic info
 ```
 

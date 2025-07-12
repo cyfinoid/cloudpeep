@@ -1,3 +1,7 @@
+// services.js
+// Broad service catalog for UI, service selection, and scanning coverage (PeekInTheCloud)
+// This file is distinct from js/service-metadata.js, which contains detailed security/permission metadata.
+// Use this file for listing, filtering, and categorizing cloud services in the UI.
 // Cloud Service Metadata
 const CLOUD_SERVICES = {
     aws: {

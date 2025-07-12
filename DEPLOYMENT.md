@@ -47,7 +47,8 @@ cloudpeep/
 ├── style.css              # Modern CSS framework (12KB)
 ├── main.js                # Core application logic (15KB)
 ├── utils.js               # Utility functions (13KB)
-├── services.js            # Service metadata (9.4KB)
+├── js/services.js            # Broad service catalog (12.1KB)
+├── js/service-metadata.js    # Detailed security metadata (9.4KB)
 ├── cloud/
 │   ├── aws.js            # AWS scanner (12KB)
 │   ├── azure.js          # Azure scanner (13KB)
@@ -177,7 +178,7 @@ cloudpeep/
 2. Open `index.html` in a browser
 3. Use browser developer tools for debugging
 4. Modify cloud scanners in `cloud/` directory
-5. Update service metadata in `services.js`
+5. Update service metadata in `js/services.js` and `js/service-metadata.js`
 
 ## 📈 Performance Metrics
 

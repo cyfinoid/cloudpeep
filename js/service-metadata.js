@@ -1,3 +1,7 @@
+// service-metadata.js
+// Detailed security/permission metadata for cloud services (PeekInTheCloud)
+// This file is distinct from js/services.js, which is the broad service catalog for UI and scanning coverage.
+// Use this file for permission analysis, API call details, and security-focused features.
 /**
  * Service metadata for PeekInTheCloud
  * Contains information about cloud services, their icons, descriptions, and permissions

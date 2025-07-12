@@ -10,7 +10,7 @@
   - [x] Create `style.css` file
   - [x] Create `main.js` file
   - [x] Create `utils.js` file
-  - [x] Create `services.js` file
+  - [x] Create `js/services.js` and `js/service-metadata.js` files
   - [x] Create `cloud/aws.js` file
   - [x] Create `cloud/azure.js` file
   - [x] Create `cloud/gcp.js` file
