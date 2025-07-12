@@ -555,6 +555,12 @@ class AWSScanner {
     }
 
     async scanEKS() {
+        // Check if EKS is available in the AWS SDK
+        if (typeof AWS.EKS !== "function") {
+            console.warn("AWS.EKS is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('eks');
+            return;
+        }
         const clusters = [];
         
         for (const region of this.regions) {

@@ -1863,9 +1863,8 @@ class PeekInTheCloud {
                     <p class="finding-rationale"><strong>Why it matters:</strong> ${this.sanitizeHtml(finding.rationale)}</p>
                     <p class="finding-remediation"><strong>How to fix:</strong> ${this.sanitizeHtml(finding.remediation)}</p>
                     <div class="finding-details">
-                        <span class="finding-resource">Resource: ${this.sanitizeHtml(finding.resourceId || 'Unknown')}</span>
-                        <span class="finding-category">Category: ${this.sanitizeHtml(finding.category)}</span>
-                        ${finding.compliance ? `<span class="finding-compliance">Compliance: ${finding.compliance.join(', ')}</span>` : ''}
+                        <span class="finding-resource">Resource: ${this.sanitizeHtml(finding.resourceId || finding.resource || 'Unknown')}</span>
+                        <span class="finding-category">Category: ${this.sanitizeHtml(finding.category || 'Security')}</span>
                     </div>
                 </div>
             </div>
@@ -2370,53 +2369,12 @@ class PeekInTheCloud {
             securityContent.appendChild(findingsSection);
         }
 
-        // Compliance Results Section
-        if (securityAnalysis.complianceResults) {
-            const complianceSection = document.createElement('div');
-            complianceSection.className = 'security-section';
-            complianceSection.innerHTML = `
-                <h4>📋 Compliance Analysis</h4>
-                <div class="compliance-container">
-                    ${Object.entries(securityAnalysis.complianceResults).map(([framework, result]) => `
-                        <div class="compliance-framework ${result.compliant ? 'compliant' : 'non-compliant'}">
-                            <div class="framework-header">
-                                <span class="framework-name">${framework.toUpperCase()}</span>
-                                <span class="framework-score">${result.score}/100</span>
-                                <span class="framework-status">${result.compliant ? '✅ Compliant' : '❌ Non-Compliant'}</span>
-                            </div>
-                            ${result.findings && result.findings.length > 0 ? `
-                                <div class="framework-findings">
-                                    <h5>Findings:</h5>
-                                    <ul>
-                                        ${result.findings.map(finding => {
-                                            const type = finding.type || 'Unknown';
-                                            const description = finding.description || 'No description available';
-                                            const recommendation = finding.recommendation || '';
-                                            const severity = finding.severity || 'medium';
-                                            
-                                            return `
-                                                <li class="finding-${severity}">
-                                                    <strong>${type}:</strong> ${description}
-                                                    ${recommendation ? `<br><em>Recommendation: ${recommendation}</em>` : ''}
-                                                </li>
-                                            `;
-                                        }).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            securityContent.appendChild(complianceSection);
-        }
-
         // Threat Assessment Section
         if (securityAnalysis.threatAssessment) {
             const threatSection = document.createElement('div');
             threatSection.className = 'security-section';
             threatSection.innerHTML = `
-                <h4>🛡️ Threat Assessment</h4>
+                <h4>️ Threat Assessment</h4>
                 <div class="threat-summary">
                     <div class="threat-counts">
                         <span class="threat-count critical">${securityAnalysis.threatAssessment.criticalThreats} Critical</span>
@@ -2458,41 +2416,56 @@ class PeekInTheCloud {
             securityContent.appendChild(threatSection);
         }
 
-        // Recommendations Section
+        // Security Recommendations Section (filtered to exclude compliance recommendations)
         if (securityAnalysis.recommendations && securityAnalysis.recommendations.length > 0) {
-            console.log('[SECURITY] Recommendations:', securityAnalysis.recommendations);
-            
-            const recommendationsSection = document.createElement('div');
-            recommendationsSection.className = 'security-section';
-            recommendationsSection.innerHTML = `
-                <h4>💡 Security Recommendations</h4>
-                <div class="recommendations-container">
-                    ${securityAnalysis.recommendations.map(rec => {
-                        console.log('[SECURITY] Processing recommendation:', rec);
-                        const actions = Array.isArray(rec.actions) ? rec.actions : [];
-                        
-                        return `
-                            <div class="recommendation ${rec.priority}">
-                                <div class="recommendation-header">
-                                    <span class="recommendation-priority">${rec.priority.toUpperCase()}</span>
-                                    <span class="recommendation-category">${rec.category}</span>
-                                </div>
-                                <div class="recommendation-title">${rec.title}</div>
-                                <div class="recommendation-description">${rec.description}</div>
-                                ${actions.length > 0 ? `
-                                    <div class="recommendation-actions">
-                                        <h6>Actions:</h6>
-                                        <ul>
-                                            ${actions.map(action => `<li>${typeof action === 'string' ? action : JSON.stringify(action)}</li>`).join('')}
-                                        </ul>
+            // Filter out compliance-related recommendations
+            const securityRecommendations = securityAnalysis.recommendations.filter(rec => {
+                const category = (rec.category || '').toLowerCase();
+                const title = (rec.title || '').toLowerCase();
+                const description = (rec.description || '').toLowerCase();
+                
+                // Exclude compliance-related recommendations
+                const complianceKeywords = ['compliance', 'hipaa', 'pci', 'dss', 'soc', 'cis', 'benchmark', 'framework'];
+                return !complianceKeywords.some(keyword => 
+                    category.includes(keyword) || title.includes(keyword) || description.includes(keyword)
+                );
+            });
+
+            if (securityRecommendations.length > 0) {
+                console.log('[SECURITY] Filtered recommendations:', securityRecommendations);
+                
+                const recommendationsSection = document.createElement('div');
+                recommendationsSection.className = 'security-section';
+                recommendationsSection.innerHTML = `
+                    <h4>💡 Security Recommendations</h4>
+                    <div class="recommendations-container">
+                        ${securityRecommendations.map(rec => {
+                            console.log('[SECURITY] Processing recommendation:', rec);
+                            const actions = Array.isArray(rec.actions) ? rec.actions : [];
+                            
+                            return `
+                                <div class="recommendation ${rec.priority}">
+                                    <div class="recommendation-header">
+                                        <span class="recommendation-priority">${rec.priority.toUpperCase()}</span>
+                                        <span class="recommendation-category">${rec.category}</span>
                                     </div>
-                                ` : ''}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-            securityContent.appendChild(recommendationsSection);
+                                    <div class="recommendation-title">${rec.title}</div>
+                                    <div class="recommendation-description">${rec.description}</div>
+                                    ${actions.length > 0 ? `
+                                        <div class="recommendation-actions">
+                                            <h6>Actions:</h6>
+                                            <ul>
+                                                ${actions.map(action => `<li>${typeof action === 'string' ? action : JSON.stringify(action)}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                securityContent.appendChild(recommendationsSection);
+            }
         }
 
         securityResults.appendChild(securityContent);
