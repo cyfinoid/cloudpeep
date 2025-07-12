@@ -55,6 +55,11 @@ class GCPScanner {
                 
                 console.log(`[${scanId}] 🔍 [${completedServices}/${services.length}] Scanning ${service}...`);
                 
+                // Update progress for current service
+                if (this.onProgressUpdate) {
+                    this.onProgressUpdate(service, `Scanning ${service}...`);
+                }
+                
                 try {
                     await this.scanService(service);
                     const serviceDuration = Date.now() - serviceStartTime;

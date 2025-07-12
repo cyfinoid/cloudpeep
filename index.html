@@ -196,13 +196,53 @@
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="loading-content">
             <div class="spinner"></div>
-            <p>Scanning cloud services...</p>
+            <h3 id="scan-status-title">Initializing Scan...</h3>
+            <p id="scan-status-message">Preparing to scan cloud services...</p>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-current">0</span>/<span id="progress-total">0</span> services
+                    (<span id="progress-percentage">0%</span>)
+                </div>
+            </div>
+            
+            <!-- Current Service Status -->
+            <div class="current-service-status">
+                <div class="service-icon" id="current-service-icon">🔍</div>
+                <div class="service-details">
+                    <div class="service-name" id="current-service-name">Initializing...</div>
+                    <div class="service-status" id="current-service-status">Preparing scanner...</div>
+                </div>
+            </div>
+            
+            <!-- Scan Statistics -->
+            <div class="scan-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Completed:</span>
+                    <span class="stat-value" id="stats-completed">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Failed:</span>
+                    <span class="stat-value" id="stats-failed">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Success Rate:</span>
+                    <span class="stat-value" id="stats-success-rate">0%</span>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- JavaScript -->
     <script src="js/utils.js"></script>
     <script src="js/services.js"></script>
+    <script src="js/security-rules.js"></script>
+    <script src="js/resource-mapper.js"></script>
+    <script src="js/enhanced-analyzer.js"></script>
     <script src="js/scanners/aws-scanner.js"></script>
     <script src="js/scanners/azure-scanner.js"></script>
     <script src="js/scanners/gcp-scanner.js"></script>
