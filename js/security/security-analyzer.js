@@ -1,0 +1,591 @@
+/**
+ * Security Analyzer - Comprehensive cloud security analysis engine
+ * Handles security scoring, compliance checks, and threat detection
+ */
+
+class SecurityAnalyzer {
+    constructor() {
+        this.complianceFrameworks = {
+            hipaa: require('./frameworks/hipaa.js'),
+            pci: require('./frameworks/pci.js'),
+            cis: require('./frameworks/cis.js')
+        };
+        
+        this.threatDetector = new ThreatDetector();
+        this.riskAssessor = new RiskAssessor();
+    }
+
+    /**
+     * Analyze security posture of cloud resources
+     * @param {Object} scanResults - Results from cloud scanners
+     * @param {string} provider - Cloud provider (aws, azure, gcp)
+     * @returns {Object} Comprehensive security analysis
+     */
+    async analyzeSecurity(scanResults, provider) {
+        console.log('🔒 Starting comprehensive security analysis...');
+        
+        const analysis = {
+            timestamp: new Date(),
+            provider: provider,
+            overallScore: 0,
+            securityFindings: [],
+            complianceResults: {},
+            threatAssessment: {},
+            recommendations: [],
+            riskScore: 0
+        };
+
+        // 1. Security Scoring
+        analysis.overallScore = this.calculateSecurityScore(scanResults);
+        
+        // 2. Security Findings Analysis
+        analysis.securityFindings = this.analyzeSecurityFindings(scanResults, provider);
+        
+        // 3. Compliance Analysis
+        analysis.complianceResults = await this.analyzeCompliance(scanResults, provider);
+        
+        // 4. Threat Assessment
+        analysis.threatAssessment = this.threatDetector.assessThreats(scanResults, provider);
+        
+        // 5. Risk Assessment
+        analysis.riskScore = this.riskAssessor.calculateRiskScore(scanResults, analysis);
+        
+        // 6. Generate Recommendations
+        analysis.recommendations = this.generateRecommendations(analysis);
+        
+        console.log(`🔒 Security analysis complete. Overall score: ${analysis.overallScore}/100`);
+        
+        return analysis;
+    }
+
+    /**
+     * Calculate overall security score (0-100)
+     * @param {Object} scanResults - Scan results
+     * @returns {number} Security score
+     */
+    calculateSecurityScore(scanResults) {
+        let score = 100;
+        const weights = {
+            'critical': 20,
+            'high': 15,
+            'medium': 10,
+            'low': 5,
+            'info': 2
+        };
+
+        // Analyze each service for security issues
+        Object.entries(scanResults).forEach(([service, data]) => {
+            if (service === 'unimplemented_services') return;
+            
+            const findings = this.analyzeServiceSecurity(data, service);
+            findings.forEach(finding => {
+                score -= weights[finding.severity] || 0;
+            });
+        });
+
+        return Math.max(0, Math.round(score));
+    }
+
+    /**
+     * Analyze security findings for a specific service
+     * @param {Object} data - Service data
+     * @param {string} service - Service name
+     * @returns {Array} Security findings
+     */
+    analyzeServiceSecurity(data, service) {
+        const findings = [];
+        
+        if (!data || data.error) {
+            findings.push({
+                type: 'service_error',
+                severity: 'medium',
+                service: service,
+                description: `Unable to scan ${service}: ${data?.error || 'Unknown error'}`
+            });
+            return findings;
+        }
+
+        // Service-specific security checks
+        switch (service) {
+            case 'ec2':
+                findings.push(...this.analyzeEC2Security(data));
+                break;
+            case 's3':
+                findings.push(...this.analyzeS3Security(data));
+                break;
+            case 'iam':
+                findings.push(...this.analyzeIAMSecurity(data));
+                break;
+            case 'rds':
+                findings.push(...this.analyzeRDSSecurity(data));
+                break;
+            case 'vpc':
+                findings.push(...this.analyzeVPCSecurity(data));
+                break;
+            case 'cloudtrail':
+                findings.push(...this.analyzeCloudTrailSecurity(data));
+                break;
+            case 'cloudwatch':
+                findings.push(...this.analyzeCloudWatchSecurity(data));
+                break;
+            default:
+                // Generic security checks for other services
+                findings.push(...this.analyzeGenericSecurity(data, service));
+        }
+
+        return findings;
+    }
+
+    /**
+     * Analyze EC2 security
+     * @param {Object} data - EC2 data
+     * @returns {Array} Security findings
+     */
+    analyzeEC2Security(data) {
+        const findings = [];
+        
+        if (!data.instances) return findings;
+
+        data.instances.forEach(instance => {
+            // Check for public IP addresses
+            if (instance.publicIpAddress) {
+                findings.push({
+                    type: 'public_instance',
+                    severity: 'high',
+                    resource: instance.instanceId,
+                    description: `EC2 instance ${instance.instanceId} has public IP ${instance.publicIpAddress}`,
+                    recommendation: 'Consider using private subnets and NAT gateways for internet access'
+                });
+            }
+
+            // Check for unencrypted volumes
+            if (instance.blockDeviceMappings) {
+                instance.blockDeviceMappings.forEach(device => {
+                    if (device.ebs && !device.ebs.encrypted) {
+                        findings.push({
+                            type: 'unencrypted_volume',
+                            severity: 'high',
+                            resource: device.ebs.volumeId,
+                            description: `EBS volume ${device.ebs.volumeId} is not encrypted`,
+                            recommendation: 'Enable encryption for all EBS volumes'
+                        });
+                    }
+                });
+            }
+
+            // Check for missing IAM roles
+            if (!instance.iamInstanceProfile) {
+                findings.push({
+                    type: 'missing_iam_role',
+                    severity: 'medium',
+                    resource: instance.instanceId,
+                    description: `EC2 instance ${instance.instanceId} has no IAM role attached`,
+                    recommendation: 'Attach appropriate IAM roles to EC2 instances'
+                });
+            }
+        });
+
+        return findings;
+    }
+
+    /**
+     * Analyze S3 security
+     * @param {Object} data - S3 data
+     * @returns {Array} Security findings
+     */
+    analyzeS3Security(data) {
+        const findings = [];
+        
+        if (!data.buckets) return findings;
+
+        data.buckets.forEach(bucket => {
+            // Check for public access
+            if (bucket.publicAccessBlock) {
+                const block = bucket.publicAccessBlock;
+                if (!block.blockPublicAcls || !block.blockPublicPolicy || 
+                    !block.ignorePublicAcls || !block.restrictPublicBuckets) {
+                    findings.push({
+                        type: 'public_bucket_access',
+                        severity: 'critical',
+                        resource: bucket.name,
+                        description: `S3 bucket ${bucket.name} has public access enabled`,
+                        recommendation: 'Enable all public access block settings'
+                    });
+                }
+            }
+
+            // Check for encryption
+            if (!bucket.encryption) {
+                findings.push({
+                    type: 'unencrypted_bucket',
+                    severity: 'high',
+                    resource: bucket.name,
+                    description: `S3 bucket ${bucket.name} is not encrypted`,
+                    recommendation: 'Enable default encryption for S3 buckets'
+                });
+            }
+
+            // Check for versioning
+            if (!bucket.versioning) {
+                findings.push({
+                    type: 'no_versioning',
+                    severity: 'medium',
+                    resource: bucket.name,
+                    description: `S3 bucket ${bucket.name} has versioning disabled`,
+                    recommendation: 'Enable versioning for data protection'
+                });
+            }
+        });
+
+        return findings;
+    }
+
+    /**
+     * Analyze IAM security
+     * @param {Object} data - IAM data
+     * @returns {Array} Security findings
+     */
+    analyzeIAMSecurity(data) {
+        const findings = [];
+        
+        // Check for root account usage
+        if (data.users) {
+            data.users.forEach(user => {
+                if (user.userName === 'root') {
+                    findings.push({
+                        type: 'root_account_usage',
+                        severity: 'critical',
+                        resource: user.arn,
+                        description: 'Root account is being used',
+                        recommendation: 'Use IAM users instead of root account'
+                    });
+                }
+            });
+        }
+
+        // Check for unused access keys
+        if (data.accessKeys) {
+            data.accessKeys.forEach(key => {
+                if (key.status === 'Inactive') {
+                    findings.push({
+                        type: 'unused_access_key',
+                        severity: 'medium',
+                        resource: key.accessKeyId,
+                        description: `Unused access key ${key.accessKeyId}`,
+                        recommendation: 'Remove unused access keys'
+                    });
+                }
+            });
+        }
+
+        // Check for overly permissive policies
+        if (data.policies) {
+            data.policies.forEach(policy => {
+                if (this.isOverlyPermissive(policy)) {
+                    findings.push({
+                        type: 'overly_permissive_policy',
+                        severity: 'high',
+                        resource: policy.arn,
+                        description: `Policy ${policy.policyName} is overly permissive`,
+                        recommendation: 'Apply principle of least privilege'
+                    });
+                }
+            });
+        }
+
+        return findings;
+    }
+
+    /**
+     * Check if IAM policy is overly permissive
+     * @param {Object} policy - IAM policy
+     * @returns {boolean} True if overly permissive
+     */
+    isOverlyPermissive(policy) {
+        // Check for wildcard permissions
+        const wildcardPatterns = ['*', 'arn:aws:*:*:*:*'];
+        
+        if (policy.document) {
+            const statements = policy.document.Statement || [];
+            return statements.some(statement => {
+                const actions = statement.Action || [];
+                const resources = statement.Resource || [];
+                
+                return actions.some(action => 
+                    wildcardPatterns.includes(action) || action.includes('*')
+                ) || resources.some(resource => 
+                    wildcardPatterns.includes(resource) || resource.includes('*')
+                );
+            });
+        }
+        
+        return false;
+    }
+
+    /**
+     * Analyze RDS security
+     * @param {Object} data - RDS data
+     * @returns {Array} Security findings
+     */
+    analyzeRDSSecurity(data) {
+        const findings = [];
+        
+        if (!data.instances) return findings;
+
+        data.instances.forEach(instance => {
+            // Check for public accessibility
+            if (instance.publiclyAccessible) {
+                findings.push({
+                    type: 'public_rds_instance',
+                    severity: 'critical',
+                    resource: instance.dbInstanceIdentifier,
+                    description: `RDS instance ${instance.dbInstanceIdentifier} is publicly accessible`,
+                    recommendation: 'Place RDS instances in private subnets'
+                });
+            }
+
+            // Check for encryption
+            if (!instance.storageEncrypted) {
+                findings.push({
+                    type: 'unencrypted_rds',
+                    severity: 'high',
+                    resource: instance.dbInstanceIdentifier,
+                    description: `RDS instance ${instance.dbInstanceIdentifier} is not encrypted`,
+                    recommendation: 'Enable encryption for RDS instances'
+                });
+            }
+
+            // Check for automated backups
+            if (!instance.backupRetentionPeriod || instance.backupRetentionPeriod === 0) {
+                findings.push({
+                    type: 'no_automated_backups',
+                    severity: 'medium',
+                    resource: instance.dbInstanceIdentifier,
+                    description: `RDS instance ${instance.dbInstanceIdentifier} has no automated backups`,
+                    recommendation: 'Enable automated backups with appropriate retention'
+                });
+            }
+        });
+
+        return findings;
+    }
+
+    /**
+     * Analyze VPC security
+     * @param {Object} data - VPC data
+     * @returns {Array} Security findings
+     */
+    analyzeVPCSecurity(data) {
+        const findings = [];
+        
+        if (!data.vpcs) return findings;
+
+        data.vpcs.forEach(vpc => {
+            // Check for default VPC usage
+            if (vpc.isDefault) {
+                findings.push({
+                    type: 'default_vpc_usage',
+                    severity: 'medium',
+                    resource: vpc.vpcId,
+                    description: `Default VPC ${vpc.vpcId} is being used`,
+                    recommendation: 'Use custom VPCs instead of default VPC'
+                });
+            }
+
+            // Check for flow logs
+            if (!vpc.flowLogs || vpc.flowLogs.length === 0) {
+                findings.push({
+                    type: 'no_flow_logs',
+                    severity: 'medium',
+                    resource: vpc.vpcId,
+                    description: `VPC ${vpc.vpcId} has no flow logs enabled`,
+                    recommendation: 'Enable VPC flow logs for network monitoring'
+                });
+            }
+        });
+
+        return findings;
+    }
+
+    /**
+     * Analyze CloudTrail security
+     * @param {Object} data - CloudTrail data
+     * @returns {Array} Security findings
+     */
+    analyzeCloudTrailSecurity(data) {
+        const findings = [];
+        
+        if (!data.trails || data.trails.length === 0) {
+            findings.push({
+                type: 'no_cloudtrail',
+                severity: 'critical',
+                resource: 'account',
+                description: 'No CloudTrail trails configured',
+                recommendation: 'Enable CloudTrail for API activity logging'
+            });
+            return findings;
+        }
+
+        data.trails.forEach(trail => {
+            // Check for global trails
+            if (!trail.isMultiRegionTrail) {
+                findings.push({
+                    type: 'regional_cloudtrail',
+                    severity: 'medium',
+                    resource: trail.name,
+                    description: `CloudTrail ${trail.name} is not multi-region`,
+                    recommendation: 'Use multi-region CloudTrail for comprehensive logging'
+                });
+            }
+
+            // Check for log file validation
+            if (!trail.logFileValidationEnabled) {
+                findings.push({
+                    type: 'no_log_validation',
+                    severity: 'medium',
+                    resource: trail.name,
+                    description: `CloudTrail ${trail.name} has log file validation disabled`,
+                    recommendation: 'Enable log file validation for integrity'
+                });
+            }
+        });
+
+        return findings;
+    }
+
+    /**
+     * Analyze CloudWatch security
+     * @param {Object} data - CloudWatch data
+     * @returns {Array} Security findings
+     */
+    analyzeCloudWatchSecurity(data) {
+        const findings = [];
+        
+        // Check for missing log groups
+        if (!data.logGroups || data.logGroups.length === 0) {
+            findings.push({
+                type: 'no_cloudwatch_logs',
+                severity: 'medium',
+                resource: 'account',
+                description: 'No CloudWatch log groups configured',
+                recommendation: 'Configure CloudWatch logs for service monitoring'
+            });
+        }
+
+        return findings;
+    }
+
+    /**
+     * Generic security analysis for other services
+     * @param {Object} data - Service data
+     * @param {string} service - Service name
+     * @returns {Array} Security findings
+     */
+    analyzeGenericSecurity(data, service) {
+        const findings = [];
+        
+        // Check for error states
+        if (data.error) {
+            findings.push({
+                type: 'service_error',
+                severity: 'medium',
+                service: service,
+                description: `Error scanning ${service}: ${data.error}`,
+                recommendation: 'Check service permissions and configuration'
+            });
+        }
+
+        // Check for empty results (might indicate permission issues)
+        if (data && typeof data === 'object' && Object.keys(data).length === 0) {
+            findings.push({
+                type: 'no_data_returned',
+                severity: 'low',
+                service: service,
+                description: `No data returned for ${service}`,
+                recommendation: 'Verify service permissions and resource existence'
+            });
+        }
+
+        return findings;
+    }
+
+    /**
+     * Analyze compliance with various frameworks
+     * @param {Object} scanResults - Scan results
+     * @param {string} provider - Cloud provider
+     * @returns {Object} Compliance results
+     */
+    async analyzeCompliance(scanResults, provider) {
+        const complianceResults = {};
+        
+        // Analyze each compliance framework
+        for (const [framework, analyzer] of Object.entries(this.complianceFrameworks)) {
+            try {
+                complianceResults[framework] = await analyzer.analyze(scanResults, provider);
+            } catch (error) {
+                console.error(`Error analyzing ${framework} compliance:`, error);
+                complianceResults[framework] = {
+                    compliant: false,
+                    score: 0,
+                    findings: [],
+                    error: error.message
+                };
+            }
+        }
+        
+        return complianceResults;
+    }
+
+    /**
+     * Generate security recommendations
+     * @param {Object} analysis - Security analysis results
+     * @returns {Array} Recommendations
+     */
+    generateRecommendations(analysis) {
+        const recommendations = [];
+        
+        // High priority recommendations
+        if (analysis.overallScore < 50) {
+            recommendations.push({
+                priority: 'critical',
+                category: 'overall',
+                title: 'Immediate Security Improvements Required',
+                description: 'Your security score is below 50. Implement critical security controls immediately.',
+                actions: [
+                    'Enable CloudTrail logging',
+                    'Encrypt all data at rest',
+                    'Review and restrict IAM permissions',
+                    'Enable VPC flow logs'
+                ]
+            });
+        }
+
+        // Compliance recommendations
+        Object.entries(analysis.complianceResults).forEach(([framework, result]) => {
+            if (!result.compliant) {
+                recommendations.push({
+                    priority: 'high',
+                    category: 'compliance',
+                    title: `${framework.toUpperCase()} Compliance Issues`,
+                    description: `Address ${framework.toUpperCase()} compliance gaps`,
+                    actions: result.recommendations || []
+                });
+            }
+        });
+
+        // Threat-based recommendations
+        if (analysis.threatAssessment.criticalThreats > 0) {
+            recommendations.push({
+                priority: 'critical',
+                category: 'threats',
+                title: 'Critical Threats Detected',
+                description: `${analysis.threatAssessment.criticalThreats} critical threats identified`,
+                actions: analysis.threatAssessment.recommendations || []
+            });
+        }
+
+        return recommendations;
+    }
+}
+
+module.exports = SecurityAnalyzer; 

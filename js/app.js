@@ -653,11 +653,17 @@ class PeekInTheCloud {
             // Perform security analysis
             console.log(`[${scanId}] 🔒 Starting security analysis...`);
             this.updateScanStatus('Security Analysis...', 'Analyzing security posture and compliance');
-            const securityReport = this.securityEngine.generateSecurityReport(provider, results);
+            
+            // Initialize security analyzer
+            const SecurityAnalyzer = require('./security/security-analyzer.js');
+            const securityAnalyzer = new SecurityAnalyzer();
+            const securityAnalysis = await securityAnalyzer.analyzeSecurity(results, provider);
+            
             console.log(`[${scanId}] ✅ Security analysis completed!`, {
-                securityScore: securityReport.securityScore,
-                totalFindings: securityReport.totalFindings,
-                findingsBySeverity: securityReport.findingsBySeverity
+                overallScore: securityAnalysis.overallScore,
+                securityFindings: securityAnalysis.securityFindings.length,
+                complianceResults: Object.keys(securityAnalysis.complianceResults),
+                threatAssessment: securityAnalysis.threatAssessment
             });
 
             // Perform resource mapping and attack surface analysis
@@ -687,11 +693,12 @@ class PeekInTheCloud {
             });
             
             this.results[provider] = results;
+            this.securityAnalysis = securityAnalysis;
             this.securityResults[provider] = securityReport;
             this.resourceMaps[provider] = resourceMapReport;
             this.enhancedAnalysis[provider] = enhancedAnalysis;
             this.displayResults(provider, results);
-            this.displaySecurityResults(provider, securityReport);
+            this.displaySecurityAnalysis(provider, securityAnalysis);
             this.displayResourceMapResults(provider, resourceMapReport);
             this.displayEnhancedAnalysisResults(provider, enhancedAnalysis);
             
@@ -1753,6 +1760,175 @@ class PeekInTheCloud {
 
     formatLabel(key) {
         return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+    }
+
+    displaySecurityAnalysis(provider, securityAnalysis) {
+        const resultsContainer = document.getElementById('scan-results');
+        const securityResults = document.createElement('div');
+        securityResults.className = 'security-results';
+        securityResults.id = `${provider}-security-analysis`;
+
+        const header = document.createElement('div');
+        header.className = 'security-header';
+        header.innerHTML = `
+            <h3>🔒 Comprehensive Security Analysis</h3>
+            <div class="security-summary">
+                <div class="security-score">
+                    <span class="score-label">Overall Security Score:</span>
+                    <span class="score-value ${this.getSecurityScoreClass(securityAnalysis.overallScore)}">${securityAnalysis.overallScore}/100</span>
+                </div>
+                <div class="risk-score">
+                    <span class="score-label">Risk Score:</span>
+                    <span class="score-value ${this.getRiskScoreClass(securityAnalysis.riskScore)}">${securityAnalysis.riskScore}/100</span>
+                </div>
+            </div>
+        `;
+
+        securityResults.appendChild(header);
+
+        const securityContent = document.createElement('div');
+        securityContent.className = 'security-content';
+
+        // Security Findings Section
+        if (securityAnalysis.securityFindings && securityAnalysis.securityFindings.length > 0) {
+            const findingsSection = document.createElement('div');
+            findingsSection.className = 'security-section';
+            findingsSection.innerHTML = `
+                <h4>🔍 Security Findings</h4>
+                <div class="findings-container">
+                    ${securityAnalysis.securityFindings.map(finding => this.formatSecurityFinding(finding)).join('')}
+                </div>
+            `;
+            securityContent.appendChild(findingsSection);
+        }
+
+        // Compliance Results Section
+        if (securityAnalysis.complianceResults) {
+            const complianceSection = document.createElement('div');
+            complianceSection.className = 'security-section';
+            complianceSection.innerHTML = `
+                <h4>📋 Compliance Analysis</h4>
+                <div class="compliance-container">
+                    ${Object.entries(securityAnalysis.complianceResults).map(([framework, result]) => `
+                        <div class="compliance-framework ${result.compliant ? 'compliant' : 'non-compliant'}">
+                            <div class="framework-header">
+                                <span class="framework-name">${framework.toUpperCase()}</span>
+                                <span class="framework-score">${result.score}/100</span>
+                                <span class="framework-status">${result.compliant ? '✅ Compliant' : '❌ Non-Compliant'}</span>
+                            </div>
+                            ${result.findings && result.findings.length > 0 ? `
+                                <div class="framework-findings">
+                                    <h5>Findings:</h5>
+                                    <ul>
+                                        ${result.findings.map(finding => `
+                                            <li class="finding-${finding.severity}">
+                                                <strong>${finding.type}:</strong> ${finding.description}
+                                                ${finding.recommendation ? `<br><em>Recommendation: ${finding.recommendation}</em>` : ''}
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            securityContent.appendChild(complianceSection);
+        }
+
+        // Threat Assessment Section
+        if (securityAnalysis.threatAssessment) {
+            const threatSection = document.createElement('div');
+            threatSection.className = 'security-section';
+            threatSection.innerHTML = `
+                <h4>🛡️ Threat Assessment</h4>
+                <div class="threat-summary">
+                    <div class="threat-counts">
+                        <span class="threat-count critical">${securityAnalysis.threatAssessment.criticalThreats} Critical</span>
+                        <span class="threat-count high">${securityAnalysis.threatAssessment.highThreats} High</span>
+                        <span class="threat-count medium">${securityAnalysis.threatAssessment.mediumThreats} Medium</span>
+                        <span class="threat-count low">${securityAnalysis.threatAssessment.lowThreats} Low</span>
+                    </div>
+                </div>
+                ${securityAnalysis.threatAssessment.attackVectors && securityAnalysis.threatAssessment.attackVectors.length > 0 ? `
+                    <div class="attack-vectors">
+                        <h5>Attack Vectors:</h5>
+                        ${securityAnalysis.threatAssessment.attackVectors.map(vector => `
+                            <div class="attack-vector ${vector.severity}">
+                                <div class="vector-header">
+                                    <span class="vector-type">${vector.type.replace(/_/g, ' ').toUpperCase()}</span>
+                                    <span class="vector-count">${vector.count} resources</span>
+                                </div>
+                                <div class="vector-description">${vector.description}</div>
+                                <div class="vector-risk"><strong>Risk:</strong> ${vector.risk}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${securityAnalysis.threatAssessment.threatPaths && securityAnalysis.threatAssessment.threatPaths.length > 0 ? `
+                    <div class="threat-paths">
+                        <h5>Threat Paths:</h5>
+                        ${securityAnalysis.threatAssessment.threatPaths.map(path => `
+                            <div class="threat-path ${path.severity}">
+                                <div class="path-header">
+                                    <span class="path-type">${path.type.replace(/_/g, ' ').toUpperCase()}</span>
+                                </div>
+                                <div class="path-description">${path.description}</div>
+                                <div class="path-risk"><strong>Risk:</strong> ${path.risk}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+            securityContent.appendChild(threatSection);
+        }
+
+        // Recommendations Section
+        if (securityAnalysis.recommendations && securityAnalysis.recommendations.length > 0) {
+            const recommendationsSection = document.createElement('div');
+            recommendationsSection.className = 'security-section';
+            recommendationsSection.innerHTML = `
+                <h4>💡 Security Recommendations</h4>
+                <div class="recommendations-container">
+                    ${securityAnalysis.recommendations.map(rec => `
+                        <div class="recommendation ${rec.priority}">
+                            <div class="recommendation-header">
+                                <span class="recommendation-priority">${rec.priority.toUpperCase()}</span>
+                                <span class="recommendation-category">${rec.category}</span>
+                            </div>
+                            <div class="recommendation-title">${rec.title}</div>
+                            <div class="recommendation-description">${rec.description}</div>
+                            ${rec.actions && rec.actions.length > 0 ? `
+                                <div class="recommendation-actions">
+                                    <h6>Actions:</h6>
+                                    <ul>
+                                        ${rec.actions.map(action => `<li>${action}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            securityContent.appendChild(recommendationsSection);
+        }
+
+        securityResults.appendChild(securityContent);
+        
+        // Remove existing security analysis for this provider
+        const existing = document.getElementById(`${provider}-security-analysis`);
+        if (existing) {
+            existing.remove();
+        }
+        
+        resultsContainer.appendChild(securityResults);
+    }
+
+    getRiskScoreClass(score) {
+        if (score >= 80) return 'critical';
+        if (score >= 60) return 'high';
+        if (score >= 40) return 'medium';
+        return 'low';
     }
 }
 
