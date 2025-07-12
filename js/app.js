@@ -688,7 +688,8 @@ class PeekInTheCloud {
                     totalServices: Object.keys(results).length,
                     successfulServices: Object.values(results).filter(r => !r.error).length,
                     failedServices: Object.values(results).filter(r => r.error).length,
-                    unimplementedServices: results.unimplemented_services ? results.unimplemented_services.count : 0
+                    unimplementedServices: results.unimplemented_services ? results.unimplemented_services.count : 0,
+            corsLimitedServices: results.cors_limited_services ? results.cors_limited_services.length : 0
                 }
             };
             
@@ -712,7 +713,7 @@ class PeekInTheCloud {
         const sanitized = {};
         
         Object.entries(results).forEach(([service, data]) => {
-            if (service === 'unimplemented_services') {
+            if (service === 'unimplemented_services' || service === 'cors_limited_services') {
                 sanitized[service] = data;
                 return;
             }
@@ -1167,8 +1168,8 @@ class PeekInTheCloud {
         resultsContent.className = 'results-content';
 
         Object.entries(results).forEach(([service, data]) => {
-            // Skip unimplemented services and account_info - they will be handled separately
-            if (service === 'unimplemented_services' || service === 'account_info') {
+            // Skip unimplemented services, CORS-limited services, and account_info - they will be handled separately
+            if (service === 'unimplemented_services' || service === 'cors_limited_services' || service === 'account_info') {
                 return;
             }
 
@@ -1219,27 +1220,72 @@ class PeekInTheCloud {
             resultsContent.appendChild(serviceDiv);
         });
 
+
+
         // Handle unimplemented services
-        if (results.unimplemented_services && results.unimplemented_services.length > 0) {
-            const unimplementedDiv = document.createElement('div');
-            unimplementedDiv.className = 'service-result';
-            unimplementedDiv.innerHTML = `
-                <div class="service-header info" onclick="app.toggleServiceResult(this)">
-                    <span class="service-icon">🚧</span>
-                    <span class="service-name">Services Not Implemented Yet</span>
-                    <span class="service-status">${results.unimplemented_services.length} services</span>
+        if (results.unimplemented_services) {
+            const unimplementedServices = results.unimplemented_services.services || results.unimplemented_services;
+            const serviceCount = results.unimplemented_services.count || (Array.isArray(unimplementedServices) ? unimplementedServices.length : 0);
+            
+            if (Array.isArray(unimplementedServices) && unimplementedServices.length > 0) {
+                const unimplementedDiv = document.createElement('div');
+                unimplementedDiv.className = 'service-result';
+                unimplementedDiv.innerHTML = `
+                    <div class="service-header info" onclick="app.toggleServiceResult(this)">
+                        <span class="service-icon">🚧</span>
+                        <span class="service-name">Services Not Available in Browser SDK</span>
+                        <span class="service-status">${serviceCount} services</span>
+                        <span class="expand-icon">▶</span>
+                    </div>
+                    <div class="service-content" style="display: none;">
+                        <div class="info-message">
+                            <p>The following services are not available in the AWS SDK v2 browser version:</p>
+                            <ul>
+                                ${unimplementedServices.map(service => `<li>${service}</li>`).join('')}
+                            </ul>
+                            <p><strong>Note:</strong> These services will be available when we upgrade to AWS SDK v3.</p>
+                        </div>
+                    </div>
+                `;
+                resultsContent.appendChild(unimplementedDiv);
+            }
+        }
+
+        // Handle CORS-limited services
+        if (results.cors_limited_services && results.cors_limited_services.length > 0) {
+            const corsLimitedDiv = document.createElement('div');
+            corsLimitedDiv.className = 'service-result';
+            corsLimitedDiv.innerHTML = `
+                <div class="service-header warning" onclick="app.toggleServiceResult(this)">
+                    <span class="service-icon">🚫</span>
+                    <span class="service-name">Services Limited by CORS Policy</span>
+                    <span class="service-status">${results.cors_limited_services.length} services</span>
                     <span class="expand-icon">▶</span>
                 </div>
                 <div class="service-content" style="display: none;">
-                    <div class="info-message">
-                        <p>The following services are not yet implemented in this version:</p>
+                    <div class="warning-message">
+                        <p><strong>Browser Security Limitation:</strong> The following services cannot be checked from a browser due to CORS (Cross-Origin Resource Sharing) policies:</p>
                         <ul>
-                            ${results.unimplemented_services.map(service => `<li>${service}</li>`).join('')}
+                            ${results.cors_limited_services.map(service => `<li><strong>${service.name}</strong> - ${service.reason}</li>`).join('')}
                         </ul>
+                        <div class="cors-explanation">
+                            <h4>Why This Happens:</h4>
+                            <ul>
+                                <li><strong>Browser Security:</strong> Browsers block cross-origin requests to prevent malicious websites from accessing your cloud resources</li>
+                                <li><strong>Cloud Provider Policy:</strong> Some cloud services (like S3) have strict CORS policies that don't allow browser-based access</li>
+                                <li><strong>Privacy Protection:</strong> This is actually a security feature protecting your cloud resources</li>
+                            </ul>
+                            <h4>Alternative Solutions:</h4>
+                            <ul>
+                                <li><strong>Server-Side Tools:</strong> Use command-line tools or server-side applications for these services</li>
+                                <li><strong>Cloud Console:</strong> Access these services directly through the cloud provider's web console</li>
+                                <li><strong>API Keys:</strong> Some services require specific API keys or authentication methods</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             `;
-            resultsContent.appendChild(unimplementedDiv);
+            resultsContent.appendChild(corsLimitedDiv);
         }
 
         // Add account info section at the end

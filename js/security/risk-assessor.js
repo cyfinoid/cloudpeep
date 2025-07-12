@@ -382,7 +382,7 @@ class RiskAssessor {
 
         // Count critical security findings
         Object.entries(scanResults).forEach(([service, data]) => {
-            if (service === 'unimplemented_services') return;
+            if (service === 'unimplemented_services' || service === 'cors_limited_services') return;
             
             if (data && typeof data === 'object') {
                 // Count resources

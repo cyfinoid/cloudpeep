@@ -174,7 +174,15 @@ class AWSScanner {
             'datapipeline', 'mediaconvert', 'storagegateway', 'workspaces',
             'cloud9', 'lex', 'iot', 'medialive', 'datasync', 'emr', 'athena',
             'pinpoint', 'efs', 'mediapackage', 'mq', 'organizations', 'detective',
-            'opsworks', 'codecommit', 'appmesh', 'backup', 'mediastore'
+            'opsworks', 'codecommit', 'appmesh', 'backup', 'mediastore',
+            'lightsail', 'batch', 'elasticsearch', 'neptune', 'docdb', 'timestream',
+            'qldb', 'keyspaces', 'memorydb', 'opensearch', 'mwaa', 'amplify',
+            'apprunner', 'lambda@edge', 'cloudhsm', 'guardduty', 'macie', 'waf',
+            'shield', 'config', 'inspector', 'artifact', 'servicecatalog', 'ram',
+            'vpc', 'directconnect', 'transitgateway', 'vpn', 'natgateway',
+            'elasticip', 'loadbalancer', 'autoscaling', 'ec2spot', 'lightsail',
+            'batch', 'elasticsearch', 'neptune', 'docdb', 'timestream', 'qldb',
+            'keyspaces', 'memorydb', 'opensearch', 'mwaa', 'amplify', 'apprunner'
         ];
     }
 
@@ -186,86 +194,60 @@ class AWSScanner {
     }
 
     getServiceScanner(service) {
+        // Convert service name to AWS SDK format (e.g., 'ec2' -> 'EC2')
+        const serviceName = service.toUpperCase();
+        
+        // Check if service constructor exists in AWS SDK at runtime
+        if (typeof AWS[serviceName] !== 'function') {
+            console.log(`🚧 ${service} (${serviceName}) not available in AWS SDK v2 browser version`);
+            return this.scanUnavailableService.bind(this, service);
+        }
+
         const scanners = {
-            // Compute Services
+            // Available services in AWS SDK v2 browser version
             ec2: this.scanEC2,
-            lambda: this.scanLambda,
-            ecs: this.scanECS,
-            eks: this.scanEKS,
-            elasticbeanstalk: this.scanElasticBeanstalk,
-            emr: this.scanEMR,
-            
-            // Storage Services
             s3: this.scanS3,
-            efs: this.scanEFS,
-            storagegateway: this.scanStorageGateway,
-            
-            // Database Services
+            iam: this.scanIAM,
             rds: this.scanRDS,
             dynamodb: this.scanDynamoDB,
+            lambda: this.scanLambda,
+            ecs: this.scanECS,
+            elasticbeanstalk: this.scanElasticBeanstalk,
+            emr: this.scanEMR,
+            efs: this.scanEFS,
+            storagegateway: this.scanStorageGateway,
             redshift: this.scanRedshift,
             elasticache: this.scanElastiCache,
             athena: this.scanAthena,
-            
-            // Networking Services
             route53: this.scanRoute53,
             apigateway: this.scanAPIGateway,
             cloudfront: this.scanCloudFront,
-            
-            // Security Services
-            iam: this.scanIAM,
             cloudtrail: this.scanCloudTrail,
             secretsmanager: this.scanSecretsManager,
-            detective: this.scanDetective,
-            
-            // Analytics Services
             kinesis: this.scanKinesis,
-            glue: this.scanGlue,
-            stepfunctions: this.scanStepFunctions,
             cloudwatch: this.scanCloudWatch,
-            
-            // Media Services
-            mediaconvert: this.scanMediaConvert,
-            medialive: this.scanMediaLive,
-            mediapackage: this.scanMediaPackage,
             elastictranscoder: this.scanElasticTranscoder,
-            
-            // AI/ML Services
-            sagemaker: this.scanSageMaker,
-            lex: this.scanLex,
-            iot: this.scanIoT,
-            
-            // Development Services
             codepipeline: this.scanCodePipeline,
             codecommit: this.scanCodeCommit,
-            cloud9: this.scanCloud9,
             ssm: this.scanSSM,
-            
-            // Management Services
             cloudformation: this.scanCloudFormation,
-            organizations: this.scanOrganizations,
-            backup: this.scanBackup,
-            
-            // Messaging Services
-            sns: this.scanSNS,
-            sqs: this.scanSQS,
-            mq: this.scanMQ,
-            
-            // Container Services
-            ecr: this.scanECR,
-            
-            // Additional Services
-            appsync: this.scanAppSync,
-            datapipeline: this.scanDataPipeline,
-            workspaces: this.scanWorkSpaces,
-            datasync: this.scanDataSync,
-            pinpoint: this.scanPinpoint,
             opsworks: this.scanOpsWorks,
-            appmesh: this.scanAppMesh,
-            mediastore: this.scanMediaStore
+            ecr: this.scanECR,
+            sns: this.scanSNS,
+            sqs: this.scanSQS
         };
         
         return scanners[service];
+    }
+
+    /**
+     * Handle services not available in AWS SDK v2 browser version
+     * @param {string} service - Service name
+     */
+    async scanUnavailableService(service) {
+        const serviceName = service.toUpperCase();
+        console.log(`🚧 ${service} (${serviceName}) not available in AWS SDK v2 browser version - constructor not found`);
+        this.addUnimplementedService(service);
     }
 
     // Compute Services
@@ -639,63 +621,15 @@ class AWSScanner {
 
     // Storage Services
     async scanS3() {
-        try {
-            console.log('🪣 Starting S3 scan...');
-            
-            // Update detailed progress
-            if (this.onDetailedProgressUpdate) {
-                this.onDetailedProgressUpdate('s3', 'buckets', 'Listing S3 buckets', '1/1');
-            }
-            
-            // Use the same simple approach as sample.html
-            const s3 = new AWS.S3();
-            
-            // Simple listBuckets call like in the working example
-            const data = await s3.listBuckets().promise();
-            
-            if (data && data.Buckets) {
-                const buckets = data.Buckets.map(bucket => ({
-                    name: bucket.Name,
-                    creationDate: bucket.CreationDate ? bucket.CreationDate.toISOString() : new Date().toISOString(),
-                    location: 'Unknown',
-                    encryption: null,
-                    versioning: false,
-                    publicAccessBlock: {
-                        BlockPublicAcls: false,
-                        IgnorePublicAcls: false,
-                        BlockPublicPolicy: false,
-                        RestrictPublicBuckets: false
-                    }
-                }));
-                
-                this.addResult('s3', { 
-                    buckets,
-                    status: 'accessible',
-                    accessible: true,
-                    permission: 'list',
-                    apiCalls: ['ListBuckets'],
-                    rawResponse: data
-                });
-            } else {
-                this.addResult('s3', { 
-                    buckets: [],
-                    status: 'accessible',
-                    accessible: true,
-                    permission: 'list',
-                    apiCalls: ['ListBuckets'],
-                    message: 'No buckets found'
-                });
-            }
-            
-        } catch (error) {
-            console.error('Error scanning S3:', error);
-            this.addResult('s3', { 
-                error: error.message,
-                status: 'inaccessible',
-                accessible: false,
-                permission: 'none'
-            });
+        console.log('🪣 S3 scan skipped due to CORS limitations...');
+        
+        // Update detailed progress
+        if (this.onDetailedProgressUpdate) {
+            this.onDetailedProgressUpdate('s3', 'cors-limitation', 'S3 blocked by CORS policy', '1/1');
         }
+        
+        // Add S3 to CORS-limited services instead of trying to scan it
+        this.addCorsLimitedService('s3', 'S3 has strict CORS policies that prevent browser-based access. This is a security feature protecting your cloud storage resources.');
     }
 
 
@@ -1003,46 +937,398 @@ class AWSScanner {
         this.addResult('sqs', { queues });
     }
 
-    // Placeholder methods for other services - these will be grouped together
-    async scanElasticBeanstalk() { this.addUnimplementedService('elasticbeanstalk'); }
-    async scanRoute53() { this.addUnimplementedService('route53'); }
-    async scanCloudWatch() { this.addUnimplementedService('cloudwatch'); }
-    async scanCodePipeline() { this.addUnimplementedService('codepipeline'); }
-    async scanSageMaker() { this.addUnimplementedService('sagemaker'); }
-    async scanSecretsManager() { this.addUnimplementedService('secretsmanager'); }
-    async scanGlue() { this.addUnimplementedService('glue'); }
-    async scanStepFunctions() { this.addUnimplementedService('stepfunctions'); }
-    async scanCloudTrail() { this.addUnimplementedService('cloudtrail'); }
-    async scanKinesis() { this.addUnimplementedService('kinesis'); }
-    async scanRedshift() { this.addUnimplementedService('redshift'); }
-    async scanElastiCache() { this.addUnimplementedService('elasticache'); }
-    async scanAPIGateway() { this.addUnimplementedService('apigateway'); }
-    async scanCloudFormation() { this.addUnimplementedService('cloudformation'); }
-    async scanAppSync() { this.addUnimplementedService('appsync'); }
-    async scanSSM() { this.addUnimplementedService('ssm'); }
-    async scanElasticTranscoder() { this.addUnimplementedService('elastictranscoder'); }
-    async scanDataPipeline() { this.addUnimplementedService('datapipeline'); }
-    async scanMediaConvert() { this.addUnimplementedService('mediaconvert'); }
-    async scanStorageGateway() { this.addUnimplementedService('storagegateway'); }
-    async scanWorkSpaces() { this.addUnimplementedService('workspaces'); }
-    async scanCloud9() { this.addUnimplementedService('cloud9'); }
-    async scanLex() { this.addUnimplementedService('lex'); }
-    async scanIoT() { this.addUnimplementedService('iot'); }
-    async scanMediaLive() { this.addUnimplementedService('medialive'); }
-    async scanDataSync() { this.addUnimplementedService('datasync'); }
-    async scanEMR() { this.addUnimplementedService('emr'); }
-    async scanAthena() { this.addUnimplementedService('athena'); }
-    async scanPinpoint() { this.addUnimplementedService('pinpoint'); }
-    async scanMediaPackage() { this.addUnimplementedService('mediapackage'); }
-    async scanMQ() { this.addUnimplementedService('mq'); }
-    async scanOrganizations() { this.addUnimplementedService('organizations'); }
-    async scanDetective() { this.addUnimplementedService('detective'); }
-    async scanOpsWorks() { this.addUnimplementedService('opsworks'); }
-    async scanCodeCommit() { this.addUnimplementedService('codecommit'); }
-    async scanAppMesh() { this.addUnimplementedService('appmesh'); }
-    async scanBackup() { this.addUnimplementedService('backup'); }
-    async scanMediaStore() { this.addUnimplementedService('mediastore'); }
-    async scanECR() { this.addUnimplementedService('ecr'); }
+    // Actually implemented services - these will try to scan and handle access issues properly
+    async scanElasticBeanstalk() {
+        try {
+            const elasticbeanstalk = new AWS.ElasticBeanstalk();
+            const environmentsData = await elasticbeanstalk.describeEnvironments().promise();
+            this.addResult('elasticbeanstalk', { environments: environmentsData.Environments || [] });
+        } catch (error) {
+            this.addResult('elasticbeanstalk', { error: error.message });
+        }
+    }
+
+    async scanRoute53() {
+        try {
+            const route53 = new AWS.Route53();
+            const hostedZonesData = await route53.listHostedZones().promise();
+            this.addResult('route53', { hostedZones: hostedZonesData.HostedZones || [] });
+        } catch (error) {
+            this.addResult('route53', { error: error.message });
+        }
+    }
+
+    async scanCloudWatch() {
+        try {
+            const cloudwatch = new AWS.CloudWatch();
+            const alarmsData = await cloudwatch.describeAlarms().promise();
+            this.addResult('cloudwatch', { alarms: alarmsData.MetricAlarms || [] });
+        } catch (error) {
+            this.addResult('cloudwatch', { error: error.message });
+        }
+    }
+
+    async scanCodePipeline() {
+        try {
+            const codepipeline = new AWS.CodePipeline();
+            const pipelinesData = await codepipeline.listPipelines().promise();
+            this.addResult('codepipeline', { pipelines: pipelinesData.pipelines || [] });
+        } catch (error) {
+            this.addResult('codepipeline', { error: error.message });
+        }
+    }
+
+    async scanSageMaker() {
+        try {
+            const sagemaker = new AWS.SageMaker();
+            const notebooksData = await sagemaker.listNotebookInstances().promise();
+            this.addResult('sagemaker', { notebookInstances: notebooksData.NotebookInstances || [] });
+        } catch (error) {
+            this.addResult('sagemaker', { error: error.message });
+        }
+    }
+
+    async scanSecretsManager() {
+        try {
+            const secretsmanager = new AWS.SecretsManager();
+            const secretsData = await secretsmanager.listSecrets().promise();
+            this.addResult('secretsmanager', { secrets: secretsData.SecretList || [] });
+        } catch (error) {
+            this.addResult('secretsmanager', { error: error.message });
+        }
+    }
+
+    async scanGlue() {
+        try {
+            const glue = new AWS.Glue();
+            const databasesData = await glue.getDatabases().promise();
+            this.addResult('glue', { databases: databasesData.DatabaseList || [] });
+        } catch (error) {
+            this.addResult('glue', { error: error.message });
+        }
+    }
+
+    async scanStepFunctions() {
+        try {
+            const stepfunctions = new AWS.StepFunctions();
+            const stateMachinesData = await stepfunctions.listStateMachines().promise();
+            this.addResult('stepfunctions', { stateMachines: stateMachinesData.stateMachines || [] });
+        } catch (error) {
+            this.addResult('stepfunctions', { error: error.message });
+        }
+    }
+
+    async scanCloudTrail() {
+        try {
+            const cloudtrail = new AWS.CloudTrail();
+            const trailsData = await cloudtrail.describeTrails().promise();
+            this.addResult('cloudtrail', { trails: trailsData.trailList || [] });
+        } catch (error) {
+            this.addResult('cloudtrail', { error: error.message });
+        }
+    }
+
+    async scanKinesis() {
+        try {
+            const kinesis = new AWS.Kinesis();
+            const streamsData = await kinesis.listStreams().promise();
+            this.addResult('kinesis', { streams: streamsData.StreamNames || [] });
+        } catch (error) {
+            this.addResult('kinesis', { error: error.message });
+        }
+    }
+
+    async scanRedshift() {
+        try {
+            const redshift = new AWS.Redshift();
+            const clustersData = await redshift.describeClusters().promise();
+            this.addResult('redshift', { clusters: clustersData.Clusters || [] });
+        } catch (error) {
+            this.addResult('redshift', { error: error.message });
+        }
+    }
+
+    async scanElastiCache() {
+        try {
+            const elasticache = new AWS.ElastiCache();
+            const clustersData = await elasticache.describeCacheClusters().promise();
+            this.addResult('elasticache', { clusters: clustersData.CacheClusters || [] });
+        } catch (error) {
+            this.addResult('elasticache', { error: error.message });
+        }
+    }
+
+    async scanAPIGateway() {
+        try {
+            const apigateway = new AWS.APIGateway();
+            const apisData = await apigateway.getRestApis().promise();
+            this.addResult('apigateway', { apis: apisData.items || [] });
+        } catch (error) {
+            this.addResult('apigateway', { error: error.message });
+        }
+    }
+
+    async scanCloudFormation() {
+        try {
+            const cloudformation = new AWS.CloudFormation();
+            const stacksData = await cloudformation.listStacks().promise();
+            this.addResult('cloudformation', { stacks: stacksData.StackSummaries || [] });
+        } catch (error) {
+            this.addResult('cloudformation', { error: error.message });
+        }
+    }
+
+    async scanAppSync() {
+        try {
+            const appsync = new AWS.AppSync();
+            const apisData = await appsync.listGraphqlApis().promise();
+            this.addResult('appsync', { apis: apisData.graphqlApis || [] });
+        } catch (error) {
+            this.addResult('appsync', { error: error.message });
+        }
+    }
+
+    async scanSSM() {
+        try {
+            const ssm = new AWS.SSM();
+            const parametersData = await ssm.describeParameters().promise();
+            this.addResult('ssm', { parameters: parametersData.Parameters || [] });
+        } catch (error) {
+            this.addResult('ssm', { error: error.message });
+        }
+    }
+
+    async scanElasticTranscoder() {
+        try {
+            const elastictranscoder = new AWS.ElasticTranscoder();
+            const pipelinesData = await elastictranscoder.listPipelines().promise();
+            this.addResult('elastictranscoder', { pipelines: pipelinesData.Pipelines || [] });
+        } catch (error) {
+            this.addResult('elastictranscoder', { error: error.message });
+        }
+    }
+
+    async scanDataPipeline() {
+        try {
+            const datapipeline = new AWS.DataPipeline();
+            const pipelinesData = await datapipeline.listPipelines().promise();
+            this.addResult('datapipeline', { pipelines: pipelinesData.pipelineIdList || [] });
+        } catch (error) {
+            this.addResult('datapipeline', { error: error.message });
+        }
+    }
+
+    async scanMediaConvert() {
+        try {
+            const mediaconvert = new AWS.MediaConvert();
+            const queuesData = await mediaconvert.listQueues().promise();
+            this.addResult('mediaconvert', { queues: queuesData.Queues || [] });
+        } catch (error) {
+            this.addResult('mediaconvert', { error: error.message });
+        }
+    }
+
+    async scanStorageGateway() {
+        try {
+            const storagegateway = new AWS.StorageGateway();
+            const gatewaysData = await storagegateway.listGateways().promise();
+            this.addResult('storagegateway', { gateways: gatewaysData.Gateways || [] });
+        } catch (error) {
+            this.addResult('storagegateway', { error: error.message });
+        }
+    }
+
+    async scanWorkSpaces() {
+        try {
+            const workspaces = new AWS.WorkSpaces();
+            const workspacesData = await workspaces.describeWorkspaces().promise();
+            this.addResult('workspaces', { workspaces: workspacesData.Workspaces || [] });
+        } catch (error) {
+            this.addResult('workspaces', { error: error.message });
+        }
+    }
+
+    async scanCloud9() {
+        try {
+            const cloud9 = new AWS.Cloud9();
+            const environmentsData = await cloud9.listEnvironments().promise();
+            this.addResult('cloud9', { environments: environmentsData.environmentIds || [] });
+        } catch (error) {
+            this.addResult('cloud9', { error: error.message });
+        }
+    }
+
+    async scanLex() {
+        try {
+            const lex = new AWS.LexModelBuildingService();
+            const botsData = await lex.getBots().promise();
+            this.addResult('lex', { bots: botsData.bots || [] });
+        } catch (error) {
+            this.addResult('lex', { error: error.message });
+        }
+    }
+
+    async scanIoT() {
+        try {
+            const iot = new AWS.Iot();
+            const thingsData = await iot.listThings().promise();
+            this.addResult('iot', { things: thingsData.things || [] });
+        } catch (error) {
+            this.addResult('iot', { error: error.message });
+        }
+    }
+
+    async scanMediaLive() {
+        try {
+            const medialive = new AWS.MediaLive();
+            const channelsData = await medialive.listChannels().promise();
+            this.addResult('medialive', { channels: channelsData.Channels || [] });
+        } catch (error) {
+            this.addResult('medialive', { error: error.message });
+        }
+    }
+
+    async scanDataSync() {
+        try {
+            const datasync = new AWS.DataSync();
+            const tasksData = await datasync.listTasks().promise();
+            this.addResult('datasync', { tasks: tasksData.Tasks || [] });
+        } catch (error) {
+            this.addResult('datasync', { error: error.message });
+        }
+    }
+
+    async scanEMR() {
+        try {
+            const emr = new AWS.EMR();
+            const clustersData = await emr.listClusters().promise();
+            this.addResult('emr', { clusters: clustersData.Clusters || [] });
+        } catch (error) {
+            this.addResult('emr', { error: error.message });
+        }
+    }
+
+    async scanAthena() {
+        try {
+            const athena = new AWS.Athena();
+            const workgroupsData = await athena.listWorkGroups().promise();
+            this.addResult('athena', { workgroups: workgroupsData.WorkGroups || [] });
+        } catch (error) {
+            this.addResult('athena', { error: error.message });
+        }
+    }
+
+    async scanPinpoint() {
+        try {
+            const pinpoint = new AWS.Pinpoint();
+            const appsData = await pinpoint.getApps().promise();
+            this.addResult('pinpoint', { apps: appsData.ApplicationsResponse.Item || [] });
+        } catch (error) {
+            this.addResult('pinpoint', { error: error.message });
+        }
+    }
+
+    async scanMediaPackage() {
+        try {
+            const mediapackage = new AWS.MediaPackage();
+            const channelsData = await mediapackage.listChannels().promise();
+            this.addResult('mediapackage', { channels: channelsData.Channels || [] });
+        } catch (error) {
+            this.addResult('mediapackage', { error: error.message });
+        }
+    }
+
+    async scanMQ() {
+        try {
+            const mq = new AWS.MQ();
+            const brokersData = await mq.listBrokers().promise();
+            this.addResult('mq', { brokers: brokersData.BrokerSummaries || [] });
+        } catch (error) {
+            this.addResult('mq', { error: error.message });
+        }
+    }
+
+    async scanOrganizations() {
+        try {
+            const organizations = new AWS.Organizations();
+            const accountsData = await organizations.listAccounts().promise();
+            this.addResult('organizations', { accounts: accountsData.Accounts || [] });
+        } catch (error) {
+            this.addResult('organizations', { error: error.message });
+        }
+    }
+
+    async scanDetective() {
+        try {
+            const detective = new AWS.Detective();
+            const graphsData = await detective.listGraphs().promise();
+            this.addResult('detective', { graphs: graphsData.GraphList || [] });
+        } catch (error) {
+            this.addResult('detective', { error: error.message });
+        }
+    }
+
+    async scanOpsWorks() {
+        try {
+            const opsworks = new AWS.OpsWorks();
+            const stacksData = await opsworks.describeStacks().promise();
+            this.addResult('opsworks', { stacks: stacksData.Stacks || [] });
+        } catch (error) {
+            this.addResult('opsworks', { error: error.message });
+        }
+    }
+
+    async scanCodeCommit() {
+        try {
+            const codecommit = new AWS.CodeCommit();
+            const repositoriesData = await codecommit.listRepositories().promise();
+            this.addResult('codecommit', { repositories: repositoriesData.repositories || [] });
+        } catch (error) {
+            this.addResult('codecommit', { error: error.message });
+        }
+    }
+
+    async scanAppMesh() {
+        try {
+            const appmesh = new AWS.AppMesh();
+            const meshesData = await appmesh.listMeshes().promise();
+            this.addResult('appmesh', { meshes: meshesData.meshes || [] });
+        } catch (error) {
+            this.addResult('appmesh', { error: error.message });
+        }
+    }
+
+    async scanBackup() {
+        try {
+            const backup = new AWS.Backup();
+            const vaultsData = await backup.listBackupVaults().promise();
+            this.addResult('backup', { vaults: vaultsData.BackupVaultList || [] });
+        } catch (error) {
+            this.addResult('backup', { error: error.message });
+        }
+    }
+
+    async scanMediaStore() {
+        try {
+            const mediastore = new AWS.MediaStore();
+            const containersData = await mediastore.listContainers().promise();
+            this.addResult('mediastore', { containers: containersData.Containers || [] });
+        } catch (error) {
+            this.addResult('mediastore', { error: error.message });
+        }
+    }
+
+    async scanECR() {
+        try {
+            const ecr = new AWS.ECR();
+            const repositoriesData = await ecr.describeRepositories().promise();
+            this.addResult('ecr', { repositories: repositoriesData.repositories || [] });
+        } catch (error) {
+            this.addResult('ecr', { error: error.message });
+        }
+    }
+
+
 
     /**
      * Add unimplemented service to the grouped list
@@ -1056,6 +1342,21 @@ class AWSScanner {
     }
 
     /**
+     * Add CORS-limited service to the grouped list
+     * @param {string} service - Service name
+     * @param {string} reason - Reason for CORS limitation
+     */
+    addCorsLimitedService(service, reason) {
+        if (!this.corsLimitedServices) {
+            this.corsLimitedServices = [];
+        }
+        this.corsLimitedServices.push({
+            name: service,
+            reason: reason
+        });
+    }
+
+    /**
      * Add result for a service
      * @param {string} service - Service name
      * @param {Object} data - Service data
@@ -1064,8 +1365,8 @@ class AWSScanner {
         this.results[service] = data;
     }
 
-    /**
-     * Get final results with grouped unimplemented services
+        /**
+     * Get final results with unimplemented and CORS-limited services
      * @returns {Object} Final results
      */
     getFinalResults() {
@@ -1075,14 +1376,19 @@ class AWSScanner {
         if (this.accountInfo) {
             finalResults['account_info'] = this.accountInfo;
         }
-        
+
         // Add grouped unimplemented services if any exist
         if (this.unimplementedServices && this.unimplementedServices.length > 0) {
             finalResults['unimplemented_services'] = {
-                message: 'Services not implemented yet',
+                message: 'Services not available in AWS SDK v2 browser version (detected at runtime)',
                 services: this.unimplementedServices,
                 count: this.unimplementedServices.length
             };
+        }
+
+        // Add grouped CORS-limited services if any exist
+        if (this.corsLimitedServices && this.corsLimitedServices.length > 0) {
+            finalResults['cors_limited_services'] = this.corsLimitedServices;
         }
         
         return finalResults;

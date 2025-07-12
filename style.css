@@ -588,6 +588,34 @@ body {
     border: 1px solid #bee5eb;
 }
 
+.warning-message {
+    color: #856404;
+    background: #fff3cd;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #ffeaa7;
+}
+
+.cors-explanation {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ffeaa7;
+}
+
+.cors-explanation h4 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.cors-explanation ul {
+    margin-left: 1rem;
+}
+
+.cors-explanation li {
+    margin-bottom: 0.5rem;
+}
+
 .no-data {
     color: #6c757d;
     font-style: italic;

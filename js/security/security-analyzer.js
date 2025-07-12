@@ -86,7 +86,7 @@ class SecurityAnalyzer {
 
         // Analyze each service for security issues
         Object.entries(scanResults).forEach(([service, data]) => {
-            if (service === 'unimplemented_services') return;
+            if (service === 'unimplemented_services' || service === 'cors_limited_services') return;
             
             const findings = this.analyzeServiceSecurity(data, service);
             findings.forEach(finding => {
@@ -108,7 +108,7 @@ class SecurityAnalyzer {
         
         // Analyze each service for security issues
         Object.entries(scanResults).forEach(([service, data]) => {
-            if (service === 'unimplemented_services') return;
+            if (service === 'unimplemented_services' || service === 'cors_limited_services') return;
             
             const serviceFindings = this.analyzeServiceSecurity(data, service);
             findings.push(...serviceFindings);
