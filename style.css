@@ -2259,3 +2259,76 @@ body {
 .honeytoken-banner .banner-icon {
     margin-right: 0.5rem;
 } 
+
+/* Unimplemented Services Section */
+.unimplemented-section {
+    border: 2px solid #ffc107;
+    background: #fffbf0;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.unimplemented-section .service-header {
+    background: #fff3cd;
+    border-bottom: 1px solid #ffeaa7;
+}
+
+.unimplemented-section .service-header .service-icon {
+    color: #856404;
+}
+
+.unimplemented-section .service-header .service-name {
+    color: #856404;
+    font-weight: 600;
+}
+
+.unimplemented-services-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.unimplemented-service {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: #e9ecef;
+    color: #6c757d;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+}
+
+.unimplemented-service:hover {
+    background: #dee2e6;
+    color: #495057;
+}
+
+/* Info message styling for unimplemented services */
+.info-message {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 1rem;
+    color: #0c5460;
+    margin: 1rem 0;
+}
+
+.info-message p {
+    margin: 0.5rem 0;
+    line-height: 1.5;
+}
+
+.info-message strong {
+    color: #0a4b53;
+}
+
+.info-message em {
+    color: #6c757d;
+    font-style: italic;
+} 

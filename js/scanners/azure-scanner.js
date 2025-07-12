@@ -88,7 +88,7 @@ class AzureScanner {
                 resourceGroups: this.resourceGroups.length
             });
             
-            return this.results;
+            return this.getFinalResults();
         } catch (error) {
             const totalDuration = Date.now() - scanStartTime;
             console.error(`[${scanId}] 💥 Azure scan failed after ${Utils.DataUtils.formatDuration(totalDuration)}:`, error);
@@ -493,38 +493,38 @@ class AzureScanner {
         }
     }
 
-    // Placeholder methods for other services
-    async scanContainerInstances() { this.addResult('containerinstances', { message: 'Service not implemented yet' }); }
-    async scanKubernetes() { this.addResult('kubernetes', { message: 'Service not implemented yet' }); }
-    async scanFileStorage() { this.addResult('filestorage', { message: 'Service not implemented yet' }); }
-    async scanQueueStorage() { this.addResult('queuestorage', { message: 'Service not implemented yet' }); }
-    async scanTableStorage() { this.addResult('tablestorage', { message: 'Service not implemented yet' }); }
-    async scanDisks() { this.addResult('disks', { message: 'Service not implemented yet' }); }
-    async scanCosmosDB() { this.addResult('cosmosdb', { message: 'Service not implemented yet' }); }
-    async scanRedisCache() { this.addResult('rediscache', { message: 'Service not implemented yet' }); }
-    async scanPostgreSQL() { this.addResult('postgresql', { message: 'Service not implemented yet' }); }
-    async scanMySQL() { this.addResult('mysql', { message: 'Service not implemented yet' }); }
-    async scanVirtualNetworks() { this.addResult('virtualnetworks', { message: 'Service not implemented yet' }); }
-    async scanLoadBalancers() { this.addResult('loadbalancers', { message: 'Service not implemented yet' }); }
-    async scanApplicationGateway() { this.addResult('applicationgateway', { message: 'Service not implemented yet' }); }
-    async scanExpressRoute() { this.addResult('expressroute', { message: 'Service not implemented yet' }); }
-    async scanDNS() { this.addResult('dns', { message: 'Service not implemented yet' }); }
-    async scanCDN() { this.addResult('cdn', { message: 'Service not implemented yet' }); }
-    async scanSecurityCenter() { this.addResult('securitycenter', { message: 'Service not implemented yet' }); }
-    async scanActiveDirectory() { this.addResult('activedirectory', { message: 'Service not implemented yet' }); }
-    async scanSentinel() { this.addResult('sentinel', { message: 'Service not implemented yet' }); }
-    async scanCognitiveServices() { this.addResult('cognitiveservices', { message: 'Service not implemented yet' }); }
-    async scanMachineLearning() { this.addResult('machinelearning', { message: 'Service not implemented yet' }); }
-    async scanBotFramework() { this.addResult('botframework', { message: 'Service not implemented yet' }); }
-    async scanDevOps() { this.addResult('devops', { message: 'Service not implemented yet' }); }
-    async scanLogicApps() { this.addResult('logicapps', { message: 'Service not implemented yet' }); }
-    async scanAPIManagement() { this.addResult('apimanagement', { message: 'Service not implemented yet' }); }
-    async scanDatabricks() { this.addResult('databricks', { message: 'Service not implemented yet' }); }
-    async scanSynapse() { this.addResult('synapse', { message: 'Service not implemented yet' }); }
-    async scanStreamAnalytics() { this.addResult('streamanalytics', { message: 'Service not implemented yet' }); }
-    async scanMediaServices() { this.addResult('mediaservices', { message: 'Service not implemented yet' }); }
-    async scanPolicy() { this.addResult('policy', { message: 'Service not implemented yet' }); }
-    async scanMonitor() { this.addResult('monitor', { message: 'Service not implemented yet' }); }
+    // Placeholder methods for other services - these will be grouped together
+    async scanContainerInstances() { this.addUnimplementedService('containerinstances'); }
+    async scanKubernetes() { this.addUnimplementedService('kubernetes'); }
+    async scanFileStorage() { this.addUnimplementedService('filestorage'); }
+    async scanQueueStorage() { this.addUnimplementedService('queuestorage'); }
+    async scanTableStorage() { this.addUnimplementedService('tablestorage'); }
+    async scanDisks() { this.addUnimplementedService('disks'); }
+    async scanCosmosDB() { this.addUnimplementedService('cosmosdb'); }
+    async scanRedisCache() { this.addUnimplementedService('rediscache'); }
+    async scanPostgreSQL() { this.addUnimplementedService('postgresql'); }
+    async scanMySQL() { this.addUnimplementedService('mysql'); }
+    async scanVirtualNetworks() { this.addUnimplementedService('virtualnetworks'); }
+    async scanLoadBalancers() { this.addUnimplementedService('loadbalancers'); }
+    async scanApplicationGateway() { this.addUnimplementedService('applicationgateway'); }
+    async scanExpressRoute() { this.addUnimplementedService('expressroute'); }
+    async scanDNS() { this.addUnimplementedService('dns'); }
+    async scanCDN() { this.addUnimplementedService('cdn'); }
+    async scanSecurityCenter() { this.addUnimplementedService('securitycenter'); }
+    async scanActiveDirectory() { this.addUnimplementedService('activedirectory'); }
+    async scanSentinel() { this.addUnimplementedService('sentinel'); }
+    async scanCognitiveServices() { this.addUnimplementedService('cognitiveservices'); }
+    async scanMachineLearning() { this.addUnimplementedService('machinelearning'); }
+    async scanBotFramework() { this.addUnimplementedService('botframework'); }
+    async scanDevOps() { this.addUnimplementedService('devops'); }
+    async scanLogicApps() { this.addUnimplementedService('logicapps'); }
+    async scanAPIManagement() { this.addUnimplementedService('apimanagement'); }
+    async scanDatabricks() { this.addUnimplementedService('databricks'); }
+    async scanSynapse() { this.addUnimplementedService('synapse'); }
+    async scanStreamAnalytics() { this.addUnimplementedService('streamanalytics'); }
+    async scanMediaServices() { this.addUnimplementedService('mediaservices'); }
+    async scanPolicy() { this.addUnimplementedService('policy'); }
+    async scanMonitor() { this.addUnimplementedService('monitor'); }
 
     async makeRequest(url) {
         try {
@@ -543,8 +543,43 @@ class AzureScanner {
         }
     }
 
+    /**
+     * Add unimplemented service to the grouped list
+     * @param {string} service - Service name
+     */
+    addUnimplementedService(service) {
+        if (!this.unimplementedServices) {
+            this.unimplementedServices = [];
+        }
+        this.unimplementedServices.push(service);
+    }
+
+    /**
+     * Add result for a service
+     * @param {string} service - Service name
+     * @param {Object} data - Service data
+     */
     addResult(service, data) {
         this.results[service] = data;
+    }
+
+    /**
+     * Get final results with grouped unimplemented services
+     * @returns {Object} Final results
+     */
+    getFinalResults() {
+        const finalResults = { ...this.results };
+        
+        // Add grouped unimplemented services if any exist
+        if (this.unimplementedServices && this.unimplementedServices.length > 0) {
+            finalResults['unimplemented_services'] = {
+                message: 'Services not implemented yet',
+                services: this.unimplementedServices,
+                count: this.unimplementedServices.length
+            };
+        }
+        
+        return finalResults;
     }
 }
 

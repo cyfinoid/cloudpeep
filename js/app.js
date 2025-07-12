@@ -769,6 +769,11 @@ class PeekInTheCloud {
         resultsContent.className = 'results-content';
 
         Object.entries(results).forEach(([service, data]) => {
+            // Skip unimplemented services - they will be handled separately
+            if (service === 'unimplemented_services') {
+                return;
+            }
+
             const serviceDiv = document.createElement('div');
             serviceDiv.className = 'service-result';
             
@@ -804,6 +809,43 @@ class PeekInTheCloud {
 
             resultsContent.appendChild(serviceDiv);
         });
+
+        // Add grouped unimplemented services section if it exists
+        if (results.unimplemented_services) {
+            const unimplementedDiv = document.createElement('div');
+            unimplementedDiv.className = 'service-result unimplemented-section';
+            
+            const unimplementedData = results.unimplemented_services;
+            const serviceList = unimplementedData.services.map(service => {
+                const serviceInfo = CLOUD_SERVICES[provider].services[service];
+                return serviceInfo ? serviceInfo.name : service;
+            }).join(', ');
+            
+            unimplementedDiv.innerHTML = `
+                <div class="service-header info" onclick="app.toggleServiceResult(this)">
+                    <span class="service-icon">🚧</span>
+                    <span class="service-name">Services Not Implemented Yet</span>
+                    <span class="service-status">${unimplementedData.count} services</span>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="service-content">
+                    <div class="info-message">
+                        <p><strong>${unimplementedData.message}</strong></p>
+                        <p>The following ${unimplementedData.count} services are not yet implemented in this version:</p>
+                        <div class="unimplemented-services-list">
+                            ${unimplementedData.services.map(service => {
+                                const serviceInfo = CLOUD_SERVICES[provider].services[service];
+                                const serviceName = serviceInfo ? serviceInfo.name : service;
+                                return `<span class="unimplemented-service">${serviceName}</span>`;
+                            }).join('')}
+                        </div>
+                        <p><em>These services will be implemented in future updates.</em></p>
+                    </div>
+                </div>
+            `;
+            
+            resultsContent.appendChild(unimplementedDiv);
+        }
 
         providerResults.appendChild(resultsContent);
         
