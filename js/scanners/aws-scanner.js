@@ -294,10 +294,18 @@ class AWSScanner {
             
             console.log(`[${scanId}] 🌍 [${regionsScanned}/${this.regions.length}] Scanning region: ${region}`);
             
+            // Update detailed progress for region
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('ec2', 'region', `Scanning region ${region}`, `${regionsScanned}/${this.regions.length}`);
+            }
+            
             try {
                 const ec2 = new AWS.EC2({ region });
                 
                 // Scan instances
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'instances', `Scanning instances in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning EC2 instances in ${region}...`);
                 const instancesData = await ec2.describeInstances().promise();
                 const regionInstances = [];
@@ -336,6 +344,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionInstances.length} instances in ${region}`);
 
                 // Scan VPCs
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'vpcs', `Scanning VPCs in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning VPCs in ${region}...`);
                 const vpcsData = await ec2.describeVpcs().promise();
                 const regionVpcs = [];
@@ -354,6 +365,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionVpcs.length} VPCs in ${region}`);
 
                 // Scan security groups
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'security-groups', `Scanning security groups in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning security groups in ${region}...`);
                 const sgData = await ec2.describeSecurityGroups().promise();
                 const regionSecurityGroups = [];
@@ -370,6 +384,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionSecurityGroups.length} security groups in ${region}`);
 
                 // Scan subnets
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'subnets', `Scanning subnets in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning subnets in ${region}...`);
                 const subnetsData = await ec2.describeSubnets().promise();
                 const regionSubnets = [];
@@ -385,6 +402,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionSubnets.length} subnets in ${region}`);
 
                 // Scan volumes
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'volumes', `Scanning volumes in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning volumes in ${region}...`);
                 const volumesData = await ec2.describeVolumes().promise();
                 const regionVolumes = [];
@@ -401,6 +421,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionVolumes.length} volumes in ${region}`);
 
                 // Scan snapshots
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'snapshots', `Scanning snapshots in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning snapshots in ${region}...`);
                 const snapshotsData = await ec2.describeSnapshots({ OwnerIds: ['self'] }).promise();
                 const regionSnapshots = [];
@@ -417,6 +440,9 @@ class AWSScanner {
                 console.log(`[${scanId}] ✅ Found ${regionSnapshots.length} snapshots in ${region}`);
 
                 // Scan AMIs
+                if (this.onDetailedProgressUpdate) {
+                    this.onDetailedProgressUpdate('ec2', 'amis', `Scanning AMIs in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                }
                 console.log(`[${scanId}] 🔍 Scanning AMIs in ${region}...`);
                 const amisData = await ec2.describeImages({ Owners: ['self'] }).promise();
                 const regionAmis = [];
@@ -616,91 +642,59 @@ class AWSScanner {
         try {
             console.log('🪣 Starting S3 scan...');
             
-            const s3 = new AWS.S3();
-            const result = {
-                status: 'unknown',
-                accessible: false,
-                permission: 'none',
-                resources: [],
-                apiCalls: [],
-                rawResponse: null
-            };
-            
-            try {
-                // Test ListBuckets - this is the core functionality
-                const listBucketsResult = await s3.listBuckets().promise();
-                result.apiCalls.push('ListBuckets');
-                result.resources = listBucketsResult.Buckets.map(bucket => bucket.Name);
-                result.rawResponse = listBucketsResult;
-                result.permission = 'list';
-                result.accessible = true;
-                result.status = 'accessible';
-                
-                // Test GetObject on first bucket if available
-                if (result.resources.length > 0) {
-                    try {
-                        const testBucket = result.resources[0];
-                        const listObjectsResult = await s3.listObjectsV2({
-                            Bucket: testBucket,
-                            MaxKeys: 1
-                        }).promise();
-                        result.apiCalls.push('ListObjectsV2');
-                        
-                        if (listObjectsResult.Contents && listObjectsResult.Contents.length > 0) {
-                            try {
-                                const testObject = listObjectsResult.Contents[0].Key;
-                                await s3.getObject({
-                                    Bucket: testBucket,
-                                    Key: testObject
-                                }).promise();
-                                result.apiCalls.push('GetObject');
-                                result.permission = 'read';
-                            } catch (error) {
-                                if (error.code === 'AccessDenied') {
-                                    // Can list but not read objects
-                                    result.permission = 'list';
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        // Can list buckets but not objects
-                        result.permission = 'list';
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Error in S3 scan:', error);
-                result.status = 'inaccessible';
-                result.error = error.message;
-                result.permission = 'none';
+            // Update detailed progress
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('s3', 'buckets', 'Listing S3 buckets', '1/1');
             }
             
-            // Convert to the format expected by the scanner
-            const buckets = result.resources.map(bucketName => ({
-                name: bucketName,
-                creationDate: new Date().toISOString(), // We don't have creation date from listBuckets
-                location: 'Unknown',
-                encryption: null,
-                versioning: false,
-                publicAccessBlock: {
-                    BlockPublicAcls: false,
-                    IgnorePublicAcls: false,
-                    BlockPublicPolicy: false,
-                    RestrictPublicBuckets: false
-                }
-            }));
+            // Use the same simple approach as sample.html
+            const s3 = new AWS.S3();
             
-            this.addResult('s3', { 
-                buckets,
-                status: result.status,
-                accessible: result.accessible,
-                permission: result.permission,
-                apiCalls: result.apiCalls
-            });
+            // Simple listBuckets call like in the working example
+            const data = await s3.listBuckets().promise();
+            
+            if (data && data.Buckets) {
+                const buckets = data.Buckets.map(bucket => ({
+                    name: bucket.Name,
+                    creationDate: bucket.CreationDate ? bucket.CreationDate.toISOString() : new Date().toISOString(),
+                    location: 'Unknown',
+                    encryption: null,
+                    versioning: false,
+                    publicAccessBlock: {
+                        BlockPublicAcls: false,
+                        IgnorePublicAcls: false,
+                        BlockPublicPolicy: false,
+                        RestrictPublicBuckets: false
+                    }
+                }));
+                
+                this.addResult('s3', { 
+                    buckets,
+                    status: 'accessible',
+                    accessible: true,
+                    permission: 'list',
+                    apiCalls: ['ListBuckets'],
+                    rawResponse: data
+                });
+            } else {
+                this.addResult('s3', { 
+                    buckets: [],
+                    status: 'accessible',
+                    accessible: true,
+                    permission: 'list',
+                    apiCalls: ['ListBuckets'],
+                    message: 'No buckets found'
+                });
+            }
             
         } catch (error) {
             console.error('Error scanning S3:', error);
-            this.addResult('s3', { error: error.message });
+            this.addResult('s3', { 
+                error: error.message,
+                status: 'inaccessible',
+                accessible: false,
+                permission: 'none'
+            });
         }
     }
 
@@ -847,6 +841,9 @@ class AWSScanner {
             };
 
             // Scan users
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('iam', 'users', 'Scanning IAM users', '1/5');
+            }
             const usersData = await iam.listUsers().promise();
             for (const user of usersData.Users) {
                 results.users.push({
@@ -857,6 +854,9 @@ class AWSScanner {
             }
 
             // Scan roles
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('iam', 'roles', 'Scanning IAM roles', '2/5');
+            }
             const rolesData = await iam.listRoles().promise();
             for (const role of rolesData.Roles) {
                 results.roles.push({
@@ -867,6 +867,9 @@ class AWSScanner {
             }
 
             // Scan groups
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('iam', 'groups', 'Scanning IAM groups', '3/5');
+            }
             const groupsData = await iam.listGroups().promise();
             for (const group of groupsData.Groups) {
                 results.groups.push({
@@ -877,6 +880,9 @@ class AWSScanner {
             }
 
             // Scan policies
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('iam', 'policies', 'Scanning IAM policies', '4/5');
+            }
             const policiesData = await iam.listPolicies({ Scope: 'Local' }).promise();
             for (const policy of policiesData.Policies) {
                 try {
@@ -904,6 +910,9 @@ class AWSScanner {
             }
 
             // Scan access keys for each user
+            if (this.onDetailedProgressUpdate) {
+                this.onDetailedProgressUpdate('iam', 'access-keys', 'Scanning access keys', '5/5');
+            }
             for (const user of results.users) {
                 try {
                     const accessKeysData = await iam.listAccessKeys({ UserName: user.userName }).promise();

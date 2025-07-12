@@ -78,6 +78,25 @@ class PeekInTheCloud {
     }
 
     /**
+     * Update detailed progress within a service
+     */
+    updateDetailedProgress(service, operation, status, subProgress = null) {
+        if (service) {
+            this.scanProgress.currentService = service;
+        }
+        
+        let detailedStatus = status;
+        if (subProgress) {
+            detailedStatus = `${status} (${subProgress})`;
+        }
+        
+        this.scanProgress.currentStatus = detailedStatus;
+        this.updateProgressUI();
+        
+        console.log(`[PROGRESS] ${service}: ${detailedStatus}`);
+    }
+
+    /**
      * Update progress UI elements
      */
     updateProgressUI() {
@@ -499,6 +518,11 @@ class PeekInTheCloud {
             // Set up progress tracking for the scanner
             scanner.onProgressUpdate = (service, status) => {
                 this.updateScanProgress(service, status, false, false);
+            };
+            
+            // Set up detailed progress tracking
+            scanner.onDetailedProgressUpdate = (service, operation, status, subProgress) => {
+                this.updateDetailedProgress(service, operation, status, subProgress);
             };
             
             // Override scanner's result tracking with our UI updates
