@@ -167,11 +167,23 @@
 
             <!-- Export Section -->
             <section id="export-section" class="export-section">
-                <h3>Export Results</h3>
+                <h3>Export & Storage</h3>
                 <div class="export-buttons">
                     <button id="export-json" class="export-button">Export JSON</button>
                     <button id="export-csv" class="export-button">Export CSV</button>
                     <button id="clear-results" class="export-button">Clear Results</button>
+                </div>
+                
+                <!-- Storage Management -->
+                <div class="storage-management">
+                    <h4>💾 Stored Results</h4>
+                    <div id="stored-results-list" class="stored-results-list">
+                        <!-- Stored results will be populated here -->
+                    </div>
+                    <div class="storage-actions">
+                        <button id="load-stored-results" class="storage-btn">Load Stored Results</button>
+                        <button id="clear-all-stored" class="storage-btn danger">Clear All Stored</button>
+                    </div>
                 </div>
             </section>
 
@@ -275,6 +287,12 @@
     <script src="js/security-rules.js"></script>
     <script src="js/resource-mapper.js"></script>
     <script src="js/enhanced-analyzer.js"></script>
+    <script src="js/security/frameworks/hipaa.js"></script>
+    <script src="js/security/frameworks/pci.js"></script>
+    <script src="js/security/frameworks/cis.js"></script>
+    <script src="js/security/threat-detector.js"></script>
+    <script src="js/security/risk-assessor.js"></script>
+    <script src="js/security/security-analyzer.js"></script>
     <script src="js/scanners/aws-scanner.js"></script>
     <script src="js/scanners/azure-scanner.js"></script>
     <script src="js/scanners/gcp-scanner.js"></script>

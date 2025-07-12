@@ -726,4 +726,5 @@ class CISComplianceAnalyzer {
     }
 }
 
-module.exports = CISComplianceAnalyzer; 
+// Make class globally available
+window.CISChecker = CISComplianceAnalyzer; 

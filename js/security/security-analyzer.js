@@ -6,13 +6,13 @@
 class SecurityAnalyzer {
     constructor() {
         this.complianceFrameworks = {
-            hipaa: require('./frameworks/hipaa.js'),
-            pci: require('./frameworks/pci.js'),
-            cis: require('./frameworks/cis.js')
+            hipaa: window.HIPAAChecker ? new window.HIPAAChecker() : null,
+            pci: window.PCIChecker ? new window.PCIChecker() : null,
+            cis: window.CISChecker ? new window.CISChecker() : null
         };
         
-        this.threatDetector = new ThreatDetector();
-        this.riskAssessor = new RiskAssessor();
+        this.threatDetector = window.ThreatDetector ? new window.ThreatDetector() : null;
+        this.riskAssessor = window.RiskAssessor ? new window.RiskAssessor() : null;
     }
 
     /**
@@ -45,10 +45,25 @@ class SecurityAnalyzer {
         analysis.complianceResults = await this.analyzeCompliance(scanResults, provider);
         
         // 4. Threat Assessment
-        analysis.threatAssessment = this.threatDetector.assessThreats(scanResults, provider);
+        if (this.threatDetector && typeof this.threatDetector.assessThreats === 'function') {
+            analysis.threatAssessment = this.threatDetector.assessThreats(scanResults, provider);
+        } else {
+            analysis.threatAssessment = {
+                criticalThreats: 0,
+                highThreats: 0,
+                mediumThreats: 0,
+                attackVectors: [],
+                threatPaths: [],
+                recommendations: []
+            };
+        }
         
         // 5. Risk Assessment
-        analysis.riskScore = this.riskAssessor.calculateRiskScore(scanResults, analysis);
+        if (this.riskAssessor && typeof this.riskAssessor.calculateRiskScore === 'function') {
+            analysis.riskScore = this.riskAssessor.calculateRiskScore(scanResults, analysis);
+        } else {
+            analysis.riskScore = 0;
+        }
         
         // 6. Generate Recommendations
         analysis.recommendations = this.generateRecommendations(analysis);
@@ -84,6 +99,26 @@ class SecurityAnalyzer {
         });
 
         return Math.max(0, Math.round(score));
+    }
+
+    /**
+     * Analyze security findings across all services
+     * @param {Object} scanResults - Scan results
+     * @param {string} provider - Cloud provider
+     * @returns {Array} Security findings
+     */
+    analyzeSecurityFindings(scanResults, provider) {
+        const findings = [];
+        
+        // Analyze each service for security issues
+        Object.entries(scanResults).forEach(([service, data]) => {
+            if (service === 'unimplemented_services') return;
+            
+            const serviceFindings = this.analyzeServiceSecurity(data, service);
+            findings.push(...serviceFindings);
+        });
+        
+        return findings;
     }
 
     /**
@@ -521,7 +556,17 @@ class SecurityAnalyzer {
         // Analyze each compliance framework
         for (const [framework, analyzer] of Object.entries(this.complianceFrameworks)) {
             try {
-                complianceResults[framework] = await analyzer.analyze(scanResults, provider);
+                if (analyzer && typeof analyzer.analyze === 'function') {
+                    complianceResults[framework] = await analyzer.analyze(scanResults, provider);
+                } else {
+                    console.warn(`${framework} compliance analyzer not available`);
+                    complianceResults[framework] = {
+                        compliant: false,
+                        score: 0,
+                        findings: [],
+                        error: 'Compliance analyzer not available'
+                    };
+                }
             } catch (error) {
                 console.error(`Error analyzing ${framework} compliance:`, error);
                 complianceResults[framework] = {
@@ -563,12 +608,22 @@ class SecurityAnalyzer {
         // Compliance recommendations
         Object.entries(analysis.complianceResults).forEach(([framework, result]) => {
             if (!result.compliant) {
+                // Extract recommendations from findings
+                const actions = [];
+                if (result.findings && Array.isArray(result.findings)) {
+                    result.findings.forEach(finding => {
+                        if (finding.recommendation) {
+                            actions.push(finding.recommendation);
+                        }
+                    });
+                }
+                
                 recommendations.push({
                     priority: 'high',
                     category: 'compliance',
                     title: `${framework.toUpperCase()} Compliance Issues`,
                     description: `Address ${framework.toUpperCase()} compliance gaps`,
-                    actions: result.recommendations || []
+                    actions: actions.length > 0 ? actions : [`Review ${framework.toUpperCase()} compliance requirements`]
                 });
             }
         });
@@ -588,4 +643,5 @@ class SecurityAnalyzer {
     }
 }
 
-module.exports = SecurityAnalyzer; 
+// Make class globally available
+window.SecurityAnalyzer = SecurityAnalyzer; 

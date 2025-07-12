@@ -34,6 +34,7 @@ class PeekInTheCloud {
         this.setupServiceGrid();
         this.setupDebugConsole();
         this.loadSavedCredentials();
+        this.populateStoredResults();
         console.log('PeekInTheCloud initialized successfully');
     }
 
@@ -66,12 +67,13 @@ class PeekInTheCloud {
         
         if (isCompleted) {
             this.scanProgress.completed++;
+            this.scanProgress.current++; // Only increment current when a service is completed
             if (isFailed) {
                 this.scanProgress.failed++;
             }
+            console.log(`[PROGRESS] Service completed: ${service} (${this.scanProgress.current}/${this.scanProgress.total})`);
         }
         
-        this.scanProgress.current++;
         this.updateProgressUI();
     }
 
@@ -320,6 +322,15 @@ class PeekInTheCloud {
 
         document.getElementById('copy-debug').addEventListener('click', () => {
             this.copyDebugLog();
+        });
+        
+        // Storage management buttons
+        document.getElementById('load-stored-results').addEventListener('click', () => {
+            this.showStoredResultsModal();
+        });
+        
+        document.getElementById('clear-all-stored').addEventListener('click', () => {
+            this.clearAllStoredResults();
         });
     }
 
@@ -629,7 +640,7 @@ class PeekInTheCloud {
             
             // Set up progress tracking for the scanner
             scanner.onProgressUpdate = (service, status) => {
-                this.updateScanProgress(service, status);
+                this.updateScanProgress(service, status, false, false);
             };
             
             // Override scanner's result tracking with our UI updates
@@ -650,57 +661,22 @@ class PeekInTheCloud {
                 failedServices: Object.values(results).filter(r => r.error).length
             });
             
-            // Perform security analysis
-            console.log(`[${scanId}] 🔒 Starting security analysis...`);
-            this.updateScanStatus('Security Analysis...', 'Analyzing security posture and compliance');
-            
-            // Initialize security analyzer
-            const SecurityAnalyzer = require('./security/security-analyzer.js');
-            const securityAnalyzer = new SecurityAnalyzer();
-            const securityAnalysis = await securityAnalyzer.analyzeSecurity(results, provider);
-            
-            console.log(`[${scanId}] ✅ Security analysis completed!`, {
-                overallScore: securityAnalysis.overallScore,
-                securityFindings: securityAnalysis.securityFindings.length,
-                complianceResults: Object.keys(securityAnalysis.complianceResults),
-                threatAssessment: securityAnalysis.threatAssessment
-            });
-
-            // Perform resource mapping and attack surface analysis
-            console.log(`[${scanId}] 🗺️ Starting resource mapping and attack surface analysis...`);
-            this.updateScanStatus('Resource Mapping...', 'Building resource relationships and attack surface');
-            const resourceMap = this.resourceMapper.buildResourceMap(provider, results);
-            const resourceMapReport = this.resourceMapper.generateResourceMapReport();
-            console.log(`[${scanId}] ✅ Resource mapping completed!`, {
-                totalResources: resourceMapReport.summary.totalResources,
-                resourceTypes: resourceMapReport.summary.resourceTypes,
-                publicResources: resourceMapReport.summary.publicResources,
-                overPrivilegedResources: resourceMapReport.summary.overPrivilegedResources,
-                escalationPaths: resourceMapReport.summary.escalationPaths
-            });
-
-            // Perform enhanced resource analysis
-            console.log(`[${scanId}] 🔍 Starting enhanced resource analysis...`);
-            this.updateScanStatus('Enhanced Analysis...', 'Performing detailed resource security analysis');
-            const enhancedAnalysis = this.enhancedAnalyzer.performEnhancedAnalysis(provider, results);
-            console.log(`[${scanId}] ✅ Enhanced analysis completed!`, {
-                totalResources: Object.keys(enhancedAnalysis.resources).length,
-                securityPosture: enhancedAnalysis.securityPosture,
-                recommendations: Object.keys(enhancedAnalysis.recommendations).reduce((acc, severity) => {
-                    acc[severity] = enhancedAnalysis.recommendations[severity].length;
-                    return acc;
-                }, {})
-            });
-            
+            // Store results and display asset information
             this.results[provider] = results;
-            this.securityAnalysis = securityAnalysis;
-            this.securityResults[provider] = securityReport;
-            this.resourceMaps[provider] = resourceMapReport;
-            this.enhancedAnalysis[provider] = enhancedAnalysis;
+            
+            // Save results to localStorage (excluding sensitive data)
+            this.saveResultsToStorage(provider, results);
+            
             this.displayResults(provider, results);
-            this.displaySecurityAnalysis(provider, securityAnalysis);
-            this.displayResourceMapResults(provider, resourceMapReport);
-            this.displayEnhancedAnalysisResults(provider, enhancedAnalysis);
+            
+            // Show analysis options
+            this.displayAnalysisOptions(provider);
+            
+            console.log(`[${scanId}] ✅ Asset extraction completed!`, {
+                servicesScanned: Object.keys(results).length,
+                successfulServices: Object.values(results).filter(r => !r.error).length,
+                failedServices: Object.values(results).filter(r => r.error).length
+            });
             
             // Update final status
             this.updateScanStatus('Scan Complete!', 'All analysis completed successfully');
@@ -751,6 +727,637 @@ class PeekInTheCloud {
             }
         }
         return this.scanners[provider];
+    }
+
+    async performSecurityAnalysis(provider) {
+        const results = this.getResults(provider);
+        
+        if (!results) {
+            this.showNotification('No scan results available for security analysis. Please run a scan first.', 'error');
+            return;
+        }
+
+        console.log(`[SECURITY] Starting security analysis for ${provider} with ${Object.keys(results).length} services`);
+        
+        // Show loading state
+        this.showNotification('Starting security analysis...', 'info');
+        
+        try {
+            // Initialize security analyzer
+            const securityAnalyzer = new SecurityAnalyzer();
+            const securityAnalysis = await securityAnalyzer.analyzeSecurity(results, provider);
+            
+            // Store and display security analysis
+            this.securityResults[provider] = securityAnalysis;
+            this.displaySecurityAnalysis(provider, securityAnalysis);
+            
+            this.showNotification('Security analysis completed!', 'success');
+        } catch (error) {
+            console.error('Security analysis failed:', error);
+            this.showNotification('Security analysis failed: ' + error.message, 'error');
+        }
+    }
+
+    showComplianceOptions(provider) {
+        const results = this.getResults(provider);
+        
+        if (!results) {
+            this.showNotification('No scan results available for compliance analysis. Please run a scan first.', 'error');
+            return;
+        }
+
+        // Create compliance options modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'compliance-modal';
+        
+        modal.innerHTML = `
+            <div class="modal-content compliance-modal">
+                <div class="modal-header">
+                    <h3>📋 Select Compliance Frameworks</h3>
+                    <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Choose which compliance frameworks to check against:</p>
+                    
+                    <div class="compliance-options">
+                        <label class="compliance-option">
+                            <input type="checkbox" id="hipaa-compliance" checked>
+                            <span class="option-icon">🏥</span>
+                            <div class="option-content">
+                                <strong>HIPAA</strong>
+                                <small>Health Insurance Portability and Accountability Act</small>
+                            </div>
+                        </label>
+                        
+                        <label class="compliance-option">
+                            <input type="checkbox" id="pci-compliance" checked>
+                            <span class="option-icon">💳</span>
+                            <div class="option-content">
+                                <strong>PCI DSS</strong>
+                                <small>Payment Card Industry Data Security Standard</small>
+                            </div>
+                        </label>
+                        
+                        <label class="compliance-option">
+                            <input type="checkbox" id="cis-compliance" checked>
+                            <span class="option-icon">🛡️</span>
+                            <div class="option-content">
+                                <strong>CIS Benchmarks</strong>
+                                <small>Center for Internet Security Benchmarks</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="app.performComplianceAnalysis('${provider}')">Start Compliance Analysis</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async performComplianceAnalysis(provider) {
+        const results = this.getResults(provider);
+        
+        if (!results) {
+            this.showNotification('No scan results available for compliance analysis. Please run a scan first.', 'error');
+            return;
+        }
+
+        // Get selected frameworks
+        const frameworks = [];
+        if (document.getElementById('hipaa-compliance').checked) frameworks.push('hipaa');
+        if (document.getElementById('pci-compliance').checked) frameworks.push('pci');
+        if (document.getElementById('cis-compliance').checked) frameworks.push('cis');
+
+        if (frameworks.length === 0) {
+            this.showNotification('Please select at least one compliance framework', 'error');
+            return;
+        }
+
+        // Close modal
+        const modal = document.getElementById('compliance-modal');
+        if (modal) modal.remove();
+
+        // Show loading state
+        this.showNotification('Starting compliance analysis...', 'info');
+        
+        try {
+            // Initialize security analyzer with selected frameworks
+            const securityAnalyzer = new SecurityAnalyzer();
+            
+            // Filter compliance frameworks based on selection
+            const originalFrameworks = securityAnalyzer.complianceFrameworks;
+            securityAnalyzer.complianceFrameworks = {};
+            frameworks.forEach(framework => {
+                if (originalFrameworks[framework]) {
+                    securityAnalyzer.complianceFrameworks[framework] = originalFrameworks[framework];
+                }
+            });
+            
+            const complianceAnalysis = await securityAnalyzer.analyzeCompliance(results, provider);
+            
+            // Display compliance results
+            this.displayComplianceResults(provider, complianceAnalysis);
+            
+            this.showNotification('Compliance analysis completed!', 'success');
+        } catch (error) {
+            console.error('Compliance analysis failed:', error);
+            this.showNotification('Compliance analysis failed: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * Save scan results to localStorage (excluding sensitive data)
+     * @param {string} provider - Cloud provider
+     * @param {Object} results - Scan results
+     */
+    saveResultsToStorage(provider, results) {
+        try {
+            const storageKey = `cloudpeep_results_${provider}`;
+            const timestamp = new Date().toISOString();
+            
+            // Create a sanitized version of results (exclude sensitive data)
+            const sanitizedResults = this.sanitizeResultsForStorage(results);
+            
+            const storageData = {
+                provider: provider,
+                timestamp: timestamp,
+                results: sanitizedResults,
+                summary: {
+                    totalServices: Object.keys(results).length,
+                    successfulServices: Object.values(results).filter(r => !r.error).length,
+                    failedServices: Object.values(results).filter(r => r.error).length,
+                    unimplementedServices: results.unimplemented_services ? results.unimplemented_services.count : 0
+                }
+            };
+            
+            localStorage.setItem(storageKey, JSON.stringify(storageData));
+            console.log(`[STORAGE] Saved ${provider} results to localStorage`);
+            
+            // Update storage summary
+            this.updateStorageSummary();
+            
+        } catch (error) {
+            console.error('Error saving results to localStorage:', error);
+        }
+    }
+
+    /**
+     * Sanitize results to remove sensitive information
+     * @param {Object} results - Original scan results
+     * @returns {Object} Sanitized results
+     */
+    sanitizeResultsForStorage(results) {
+        const sanitized = {};
+        
+        Object.entries(results).forEach(([service, data]) => {
+            if (service === 'unimplemented_services') {
+                sanitized[service] = data;
+                return;
+            }
+            
+            if (data.error) {
+                // Keep error information but sanitize any sensitive data
+                sanitized[service] = {
+                    error: data.error,
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+            } else {
+                // For successful results, keep the data but ensure no credentials are included
+                sanitized[service] = this.sanitizeServiceData(data);
+            }
+        });
+        
+        return sanitized;
+    }
+
+    /**
+     * Sanitize service-specific data
+     * @param {Object} data - Service data
+     * @returns {Object} Sanitized service data
+     */
+    sanitizeServiceData(data) {
+        if (!data || typeof data !== 'object') {
+            return data;
+        }
+        
+        const sanitized = { ...data };
+        
+        // Remove any potential credential fields
+        const sensitiveFields = [
+            'accessKeyId', 'secretAccessKey', 'sessionToken', 'accessToken',
+            'serviceAccountKey', 'password', 'secret', 'key', 'token',
+            'credentials', 'auth', 'authentication'
+        ];
+        
+        // Recursively remove sensitive fields
+        const removeSensitiveFields = (obj) => {
+            if (obj && typeof obj === 'object') {
+                Object.keys(obj).forEach(key => {
+                    const lowerKey = key.toLowerCase();
+                    if (sensitiveFields.some(field => lowerKey.includes(field))) {
+                        delete obj[key];
+                    } else if (typeof obj[key] === 'object') {
+                        removeSensitiveFields(obj[key]);
+                    }
+                });
+            }
+        };
+        
+        removeSensitiveFields(sanitized);
+        return sanitized;
+    }
+
+    /**
+     * Load results from localStorage
+     * @param {string} provider - Cloud provider
+     * @returns {Object|null} Stored results or null
+     */
+    loadResultsFromStorage(provider) {
+        try {
+            const storageKey = `cloudpeep_results_${provider}`;
+            const storedData = localStorage.getItem(storageKey);
+            
+            if (storedData) {
+                const parsed = JSON.parse(storedData);
+                console.log(`[STORAGE] Loaded ${provider} results from localStorage`);
+                return parsed;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error loading results from localStorage:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get all stored scan results
+     * @returns {Object} All stored results by provider
+     */
+    getAllStoredResults() {
+        const results = {};
+        const keys = Object.keys(localStorage);
+        
+        keys.forEach(key => {
+            if (key.startsWith('cloudpeep_results_')) {
+                const provider = key.replace('cloudpeep_results_', '');
+                const storedData = this.loadResultsFromStorage(provider);
+                if (storedData) {
+                    results[provider] = storedData;
+                }
+            }
+        });
+        
+        return results;
+    }
+
+    /**
+     * Update storage summary display
+     */
+    updateStorageSummary() {
+        const storedResults = this.getAllStoredResults();
+        const totalScans = Object.keys(storedResults).length;
+        
+        if (totalScans > 0) {
+            this.showNotification(`${totalScans} scan result(s) saved to localStorage`, 'info');
+        }
+    }
+
+    /**
+     * Clear stored results for a provider
+     * @param {string} provider - Cloud provider
+     */
+    clearStoredResults(provider) {
+        try {
+            const storageKey = `cloudpeep_results_${provider}`;
+            localStorage.removeItem(storageKey);
+            console.log(`[STORAGE] Cleared ${provider} results from localStorage`);
+            this.showNotification(`${provider.toUpperCase()} results cleared from storage`, 'info');
+        } catch (error) {
+            console.error('Error clearing stored results:', error);
+        }
+    }
+
+    /**
+     * Clear all stored results
+     */
+    clearAllStoredResults() {
+        try {
+            const keys = Object.keys(localStorage);
+            let clearedCount = 0;
+            
+            keys.forEach(key => {
+                if (key.startsWith('cloudpeep_results_')) {
+                    localStorage.removeItem(key);
+                    clearedCount++;
+                }
+            });
+            
+            console.log(`[STORAGE] Cleared ${clearedCount} stored results`);
+            this.showNotification(`Cleared ${clearedCount} stored scan results`, 'info');
+        } catch (error) {
+            console.error('Error clearing all stored results:', error);
+        }
+    }
+
+    /**
+     * Display stored results for a provider
+     * @param {string} provider - Cloud provider
+     */
+    displayStoredResults(provider) {
+        const storedData = this.loadResultsFromStorage(provider);
+        
+        if (storedData) {
+            this.results[provider] = storedData.results;
+            this.displayResults(provider, storedData.results);
+            this.displayAnalysisOptions(provider);
+            
+            this.showNotification(`Loaded ${provider.toUpperCase()} results from storage (${storedData.summary.totalServices} services)`, 'success');
+        } else {
+            this.showNotification(`No stored results found for ${provider.toUpperCase()}`, 'warning');
+        }
+    }
+
+    /**
+     * Populate stored results list in the UI
+     */
+    populateStoredResults() {
+        const storedResultsList = document.getElementById('stored-results-list');
+        if (!storedResultsList) return;
+        
+        const storedResults = this.getAllStoredResults();
+        
+        if (Object.keys(storedResults).length === 0) {
+            storedResultsList.innerHTML = '<p class="no-stored-results">No stored results found</p>';
+            return;
+        }
+        
+        let html = '';
+        Object.entries(storedResults).forEach(([provider, data]) => {
+            const date = new Date(data.timestamp).toLocaleDateString();
+            const time = new Date(data.timestamp).toLocaleTimeString();
+            
+            html += `
+                <div class="stored-result-item">
+                    <div class="stored-result-info">
+                        <div class="stored-provider">${provider.toUpperCase()}</div>
+                        <div class="stored-summary">
+                            ${data.summary.totalServices} services • ${data.summary.successfulServices} successful • ${data.summary.failedServices} failed
+                        </div>
+                        <div class="stored-timestamp">${date} at ${time}</div>
+                    </div>
+                    <div class="stored-result-actions">
+                        <button class="storage-btn small" onclick="app.displayStoredResults('${provider}')">Load</button>
+                        <button class="storage-btn small danger" onclick="app.clearStoredResults('${provider}')">Clear</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        storedResultsList.innerHTML = html;
+    }
+
+    /**
+     * Show modal for loading stored results
+     */
+    showStoredResultsModal() {
+        const storedResults = this.getAllStoredResults();
+        
+        if (Object.keys(storedResults).length === 0) {
+            this.showNotification('No stored results found', 'warning');
+            return;
+        }
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'stored-results-modal';
+        
+        let modalHtml = `
+            <div class="modal-content stored-results-modal">
+                <div class="modal-header">
+                    <h3>💾 Load Stored Results</h3>
+                    <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Select a stored scan result to load:</p>
+                    <div class="stored-results-modal-list">
+        `;
+        
+        Object.entries(storedResults).forEach(([provider, data]) => {
+            const date = new Date(data.timestamp).toLocaleDateString();
+            const time = new Date(data.timestamp).toLocaleTimeString();
+            
+            modalHtml += `
+                <div class="stored-result-modal-item" onclick="app.loadStoredResult('${provider}'); this.closest('.modal-overlay').remove();">
+                    <div class="stored-result-modal-info">
+                        <div class="stored-provider-modal">${provider.toUpperCase()}</div>
+                        <div class="stored-summary-modal">
+                            ${data.summary.totalServices} services • ${data.summary.successfulServices} successful • ${data.summary.failedServices} failed
+                        </div>
+                        <div class="stored-timestamp-modal">${date} at ${time}</div>
+                    </div>
+                    <div class="stored-result-modal-action">
+                        <span class="load-icon">📂</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        modalHtml += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modal.innerHTML = modalHtml;
+        document.body.appendChild(modal);
+    }
+
+    /**
+     * Load stored result and display it
+     * @param {string} provider - Cloud provider
+     */
+    loadStoredResult(provider) {
+        this.displayStoredResults(provider);
+        this.populateStoredResults(); // Refresh the list
+    }
+
+    /**
+     * Check if results are available for a provider (in memory or localStorage)
+     * @param {string} provider - Cloud provider
+     * @returns {boolean} True if results are available
+     */
+    hasResults(provider) {
+        // Check memory first
+        if (this.results[provider]) {
+            return true;
+        }
+        
+        // Check localStorage
+        const storedData = this.loadResultsFromStorage(provider);
+        return storedData && storedData.results;
+    }
+
+    /**
+     * Get results for a provider (from memory or localStorage)
+     * @param {string} provider - Cloud provider
+     * @returns {Object|null} Results or null if not available
+     */
+    getResults(provider) {
+        // Check memory first
+        if (this.results[provider]) {
+            return this.results[provider];
+        }
+        
+        // Try localStorage
+        const storedData = this.loadResultsFromStorage(provider);
+        if (storedData && storedData.results) {
+            this.results[provider] = storedData.results; // Cache in memory
+            return storedData.results;
+        }
+        
+        return null;
+    }
+
+    displayComplianceResults(provider, complianceResults) {
+        const resultsContainer = document.getElementById('scan-results');
+        const complianceResultsDiv = document.createElement('div');
+        complianceResultsDiv.className = 'compliance-results';
+        complianceResultsDiv.id = `${provider}-compliance-results`;
+
+        let complianceHtml = `
+            <div class="compliance-header">
+                <h3>📋 Compliance Analysis Results</h3>
+                <div class="compliance-summary">
+        `;
+
+        Object.entries(complianceResults).forEach(([framework, result]) => {
+            const frameworkName = framework.toUpperCase();
+            const statusClass = result.compliant ? 'compliant' : 'non-compliant';
+            const statusIcon = result.compliant ? '✅' : '❌';
+            
+            complianceHtml += `
+                <div class="compliance-framework ${statusClass}">
+                    <span class="framework-icon">${statusIcon}</span>
+                    <div class="framework-info">
+                        <strong>${frameworkName}</strong>
+                        <span class="framework-score">${result.score}/100</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        complianceHtml += `
+                </div>
+            </div>
+            <div class="compliance-details">
+        `;
+
+        Object.entries(complianceResults).forEach(([framework, result]) => {
+            const frameworkName = framework.toUpperCase();
+            complianceHtml += `
+                <div class="framework-details">
+                    <h4>${frameworkName} Compliance</h4>
+                    <div class="compliance-status ${result.compliant ? 'compliant' : 'non-compliant'}">
+                        Status: ${result.compliant ? 'Compliant' : 'Non-Compliant'} (Score: ${result.score}/100)
+                    </div>
+                    ${result.findings && result.findings.length > 0 ? `
+                        <div class="compliance-findings">
+                            <h5>Findings:</h5>
+                            <ul>
+                                ${result.findings.map(finding => {
+                                    const type = finding.type || 'Unknown';
+                                    const description = finding.description || 'No description available';
+                                    const recommendation = finding.recommendation || '';
+                                    const severity = finding.severity || 'medium';
+                                    
+                                    return `
+                                        <li class="finding ${severity}">
+                                            <strong>${type}:</strong> ${description}
+                                            ${recommendation ? `<br><em>Recommendation: ${recommendation}</em>` : ''}
+                                        </li>
+                                    `;
+                                }).join('')}
+                            </ul>
+                        </div>
+                    ` : '<p>No compliance issues found.</p>'}
+                </div>
+            `;
+        });
+
+        complianceHtml += `
+            </div>
+        `;
+
+        complianceResultsDiv.innerHTML = complianceHtml;
+
+        // Remove existing compliance results for this provider
+        const existing = document.getElementById(`${provider}-compliance-results`);
+        if (existing) {
+            existing.remove();
+        }
+        
+        resultsContainer.appendChild(complianceResultsDiv);
+    }
+
+    displayAnalysisOptions(provider) {
+        const resultsContainer = document.getElementById('scan-results');
+        const analysisOptions = document.createElement('div');
+        analysisOptions.className = 'analysis-options';
+        analysisOptions.id = `${provider}-analysis-options`;
+
+        // Check if we have results available for this provider
+        const hasResults = this.hasResults(provider);
+        const storedData = this.loadResultsFromStorage(provider);
+
+        analysisOptions.innerHTML = `
+            <div class="analysis-options-header">
+                <h3>🔍 Analysis Options</h3>
+                <p>Choose additional analysis to perform on your cloud assets:</p>
+            </div>
+            
+            <div class="analysis-buttons">
+                <button class="analysis-btn security-btn" onclick="app.performSecurityAnalysis('${provider}')" ${!hasResults ? 'disabled' : ''}>
+                    <span class="btn-icon">🔒</span>
+                    <span class="btn-text">
+                        <strong>Security Review</strong>
+                        <small>Analyze security posture, threats, and vulnerabilities</small>
+                    </span>
+                </button>
+                
+                <button class="analysis-btn compliance-btn" onclick="app.showComplianceOptions('${provider}')" ${!hasResults ? 'disabled' : ''}>
+                    <span class="btn-icon">📋</span>
+                    <span class="btn-text">
+                        <strong>Compliance Review</strong>
+                        <small>Check against industry standards and frameworks</small>
+                    </span>
+                </button>
+            </div>
+            
+            ${!hasResults ? `
+                <div class="no-results-warning">
+                    <p>⚠️ No scan results available for ${provider.toUpperCase()}. Please run a scan first to enable analysis options.</p>
+                </div>
+            ` : storedData ? `
+                <div class="storage-info">
+                    <p>💾 Results saved to localStorage (${storedData.summary.totalServices} services scanned on ${new Date(storedData.timestamp).toLocaleDateString()})</p>
+                </div>
+            ` : ''}
+        `;
+
+        // Remove existing analysis options for this provider
+        const existing = document.getElementById(`${provider}-analysis-options`);
+        if (existing) {
+            existing.remove();
+        }
+        
+        resultsContainer.appendChild(analysisOptions);
     }
 
     displayResults(provider, results) {
@@ -1234,6 +1841,9 @@ class PeekInTheCloud {
         if (entries.length > 1000) {
             entries[0].remove();
         }
+
+        // Update loading modal with latest log message
+        this.updateLoadingModalLog(message, level);
     }
 
     toggleDebugPanel() {
@@ -1273,6 +1883,52 @@ class PeekInTheCloud {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Update the loading modal with the latest log message
+     * @param {string} message - The log message
+     * @param {string} level - The log level (info, error, warning)
+     */
+    updateLoadingModalLog(message, level) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (!loadingOverlay || loadingOverlay.classList.contains('hidden')) {
+            return; // Only update if loading modal is visible
+        }
+
+        // Find or create the log display area in the loading modal
+        let logDisplay = loadingOverlay.querySelector('.loading-log-display');
+        if (!logDisplay) {
+            logDisplay = document.createElement('div');
+            logDisplay.className = 'loading-log-display';
+            logDisplay.innerHTML = `
+                <div class="loading-log-header">
+                    <span class="loading-log-title">📋 Latest Activity</span>
+                </div>
+                <div class="loading-log-content">
+                    <div class="loading-log-message" id="loading-latest-log"></div>
+                </div>
+            `;
+            
+            // Insert after the scan statistics
+            const scanStats = loadingOverlay.querySelector('.scan-stats');
+            if (scanStats) {
+                scanStats.parentNode.insertBefore(logDisplay, scanStats.nextSibling);
+            }
+        }
+
+        // Update the latest log message
+        const latestLogElement = logDisplay.querySelector('#loading-latest-log');
+        if (latestLogElement) {
+            const timestamp = new Date().toLocaleTimeString();
+            const levelClass = level === 'error' ? 'error' : level === 'warning' ? 'warning' : 'info';
+            
+            latestLogElement.innerHTML = `
+                <span class="loading-log-timestamp">[${timestamp}]</span>
+                <span class="loading-log-level ${levelClass}">${level.toUpperCase()}</span>
+                <span class="loading-log-text">${this.sanitizeHtml(message)}</span>
+            `;
+        }
     }
 
     // Security Results Helper Methods
@@ -1820,12 +2476,19 @@ class PeekInTheCloud {
                                 <div class="framework-findings">
                                     <h5>Findings:</h5>
                                     <ul>
-                                        ${result.findings.map(finding => `
-                                            <li class="finding-${finding.severity}">
-                                                <strong>${finding.type}:</strong> ${finding.description}
-                                                ${finding.recommendation ? `<br><em>Recommendation: ${finding.recommendation}</em>` : ''}
-                                            </li>
-                                        `).join('')}
+                                        ${result.findings.map(finding => {
+                                            const type = finding.type || 'Unknown';
+                                            const description = finding.description || 'No description available';
+                                            const recommendation = finding.recommendation || '';
+                                            const severity = finding.severity || 'medium';
+                                            
+                                            return `
+                                                <li class="finding-${severity}">
+                                                    <strong>${type}:</strong> ${description}
+                                                    ${recommendation ? `<br><em>Recommendation: ${recommendation}</em>` : ''}
+                                                </li>
+                                            `;
+                                        }).join('')}
                                     </ul>
                                 </div>
                             ` : ''}
@@ -1885,29 +2548,36 @@ class PeekInTheCloud {
 
         // Recommendations Section
         if (securityAnalysis.recommendations && securityAnalysis.recommendations.length > 0) {
+            console.log('[SECURITY] Recommendations:', securityAnalysis.recommendations);
+            
             const recommendationsSection = document.createElement('div');
             recommendationsSection.className = 'security-section';
             recommendationsSection.innerHTML = `
                 <h4>💡 Security Recommendations</h4>
                 <div class="recommendations-container">
-                    ${securityAnalysis.recommendations.map(rec => `
-                        <div class="recommendation ${rec.priority}">
-                            <div class="recommendation-header">
-                                <span class="recommendation-priority">${rec.priority.toUpperCase()}</span>
-                                <span class="recommendation-category">${rec.category}</span>
-                            </div>
-                            <div class="recommendation-title">${rec.title}</div>
-                            <div class="recommendation-description">${rec.description}</div>
-                            ${rec.actions && rec.actions.length > 0 ? `
-                                <div class="recommendation-actions">
-                                    <h6>Actions:</h6>
-                                    <ul>
-                                        ${rec.actions.map(action => `<li>${action}</li>`).join('')}
-                                    </ul>
+                    ${securityAnalysis.recommendations.map(rec => {
+                        console.log('[SECURITY] Processing recommendation:', rec);
+                        const actions = Array.isArray(rec.actions) ? rec.actions : [];
+                        
+                        return `
+                            <div class="recommendation ${rec.priority}">
+                                <div class="recommendation-header">
+                                    <span class="recommendation-priority">${rec.priority.toUpperCase()}</span>
+                                    <span class="recommendation-category">${rec.category}</span>
                                 </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
+                                <div class="recommendation-title">${rec.title}</div>
+                                <div class="recommendation-description">${rec.description}</div>
+                                ${actions.length > 0 ? `
+                                    <div class="recommendation-actions">
+                                        <h6>Actions:</h6>
+                                        <ul>
+                                            ${actions.map(action => `<li>${typeof action === 'string' ? action : JSON.stringify(action)}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             `;
             securityContent.appendChild(recommendationsSection);

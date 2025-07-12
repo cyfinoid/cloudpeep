@@ -588,4 +588,5 @@ class ThreatDetector {
     }
 }
 
-module.exports = ThreatDetector; 
+// Make class globally available
+window.ThreatDetector = ThreatDetector; 

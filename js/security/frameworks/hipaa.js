@@ -588,4 +588,5 @@ class HIPAAComplianceAnalyzer {
     }
 }
 
-module.exports = HIPAAComplianceAnalyzer; 
+// Make class globally available
+window.HIPAAChecker = HIPAAComplianceAnalyzer; 

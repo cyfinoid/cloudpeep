@@ -598,4 +598,5 @@ class RiskAssessor {
     }
 }
 
-module.exports = RiskAssessor; 
+// Make class globally available
+window.RiskAssessor = RiskAssessor; 

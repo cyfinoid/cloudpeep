@@ -711,4 +711,5 @@ class PCIDSSComplianceAnalyzer {
     }
 }
 
-module.exports = PCIDSSComplianceAnalyzer; 
+// Make class globally available
+window.PCIChecker = PCIDSSComplianceAnalyzer; 
