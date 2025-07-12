@@ -761,21 +761,21 @@ const Utils = {
                 // Remove AKIA prefix
                 const trimmedKey = accessKeyId.substring(4);
                 
-                // Base32 decode
+                // Base32 decode using a more reliable method
                 const decoded = this.base32Decode(trimmedKey);
                 
                 // Extract first 6 bytes
                 const accountBytes = decoded.slice(0, 6);
                 
-                // Convert to integer
-                let accountInt = 0;
+                // Convert to BigInt for proper handling of large numbers
+                let accountInt = BigInt(0);
                 for (let i = 0; i < accountBytes.length; i++) {
-                    accountInt = (accountInt << 8) | accountBytes[i];
+                    accountInt = (accountInt << BigInt(8)) | BigInt(accountBytes[i]);
                 }
                 
-                // Apply mask and shift
-                const mask = 0x7fffffffff80;
-                const accountId = (accountInt & mask) >> 7;
+                // Apply mask and shift (using BigInt)
+                const mask = BigInt('0x7fffffffff80');
+                const accountId = (accountInt & mask) >> BigInt(7);
                 
                 return accountId.toString().padStart(12, '0');
             } catch (error) {
@@ -793,16 +793,20 @@ const Utils = {
             const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
             const padding = '=';
             
+            // Remove any padding characters
+            input = input.replace(/=/g, '');
+            
             let bits = 0;
             let value = 0;
             let output = [];
             
             for (let i = 0; i < input.length; i++) {
                 const char = input[i];
-                if (char === padding) break;
-                
                 const index = alphabet.indexOf(char.toUpperCase());
-                if (index === -1) continue;
+                if (index === -1) {
+                    console.warn(`Invalid base32 character: ${char}`);
+                    continue;
+                }
                 
                 value = (value << 5) | index;
                 bits += 5;
@@ -811,6 +815,11 @@ const Utils = {
                     output.push((value >>> (bits - 8)) & 255);
                     bits -= 8;
                 }
+            }
+            
+            // Handle any remaining bits
+            if (bits >= 5) {
+                output.push((value << (8 - bits)) & 255);
             }
             
             return new Uint8Array(output);

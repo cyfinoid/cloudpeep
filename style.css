@@ -2220,3 +2220,16 @@ body {
     color: #6c757d;
     font-family: 'Courier New', monospace;
 } 
+
+/* Service Icon SVG */
+.service-icon-svg {
+    width: 24px;
+    height: 24px;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.service-icon-svg:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+} 

@@ -399,6 +399,38 @@ class PeekInTheCloud {
             }
             console.log(`[${scanId}] ✅ Credentials validated successfully`);
 
+            // Check for honeytoken/canary tokens
+            console.log(`[${scanId}] 🔍 Checking for honeytoken/canary tokens...`);
+            const honeytokenInfo = this.checkForHoneytoken(provider, credentials);
+            
+            if (honeytokenInfo.isHoneytoken) {
+                console.log(`[${scanId}] ⚠️ Honeytoken detected:`, honeytokenInfo);
+                
+                // Show honeytoken warning modal and wait for user decision
+                return new Promise((resolve, reject) => {
+                    this.showHoneytokenWarning(honeytokenInfo, 
+                        // User chose to proceed
+                        async () => {
+                            console.log(`[${scanId}] ✅ User chose to proceed with honeytoken scan`);
+                            try {
+                                await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        },
+                        // User chose to cancel
+                        () => {
+                            console.log(`[${scanId}] ❌ User cancelled honeytoken scan`);
+                            this.showNotification('Scan cancelled due to honeytoken detection', 'warning');
+                            resolve();
+                        }
+                    );
+                });
+            } else {
+                console.log(`[${scanId}] ✅ No honeytoken detected, proceeding with scan`);
+            }
+
             // Continue with scan
             await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
 
@@ -1102,6 +1134,7 @@ class PeekInTheCloud {
             const serviceInfo = CLOUD_SERVICES[provider].services[service];
             const serviceName = serviceInfo ? serviceInfo.name : service;
             const serviceCategory = serviceInfo ? serviceInfo.category : 'Unknown';
+            const serviceIcon = serviceInfo && serviceInfo.icon ? serviceInfo.icon : SERVICE_CATEGORIES[serviceCategory] || '🔍';
             
             let status = 'success';
             let content = '';
@@ -1117,9 +1150,19 @@ class PeekInTheCloud {
                 content = this.formatServiceData(data);
             }
 
+            // Create icon element
+            let iconElement = '';
+            if (serviceIcon.startsWith('icons/')) {
+                // Use SVG icon
+                iconElement = `<img src="${serviceIcon}" alt="${serviceName}" class="service-icon-svg" />`;
+            } else {
+                // Use emoji icon
+                iconElement = `<span class="service-icon">${serviceIcon}</span>`;
+            }
+
             serviceDiv.innerHTML = `
                 <div class="service-header ${status}" onclick="app.toggleServiceResult(this)">
-                    <span class="service-icon">${SERVICE_CATEGORIES[serviceCategory] || '🔍'}</span>
+                    ${iconElement}
                     <span class="service-name">${serviceName}</span>
                     <span class="service-status">${this.getStatusText(data)}</span>
                     <span class="expand-icon">▶</span>
