@@ -972,33 +972,134 @@ body {
 }
 
 /* Modal Overlay */
-.modal-overlay {
+.modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(5px);
-}
-
-.modal-overlay.hidden {
-    display: none;
+    z-index: 2000;
 }
 
 .modal-content {
     background: white;
     border-radius: 15px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
+    max-width: 90%;
+    max-height: 90%;
+    width: 800px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: #f8f9fa;
+    color: #dc3545;
+}
+
+.modal-body {
+    padding: 1.5rem;
     overflow-y: auto;
-    position: relative;
+    flex: 1;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.modal-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #667eea;
+    color: white;
+}
+
+.modal-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.modal-btn.secondary {
+    background: #6c757d;
+}
+
+.modal-btn.secondary:hover {
+    background: #5a6268;
+}
+
+.policy-json {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Policy Button */
+.policy-read-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: 0.5rem;
+}
+
+.policy-read-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
 }
 
 .honeytoken-modal {
@@ -1161,110 +1262,8 @@ body {
     background: #a8a8a8;
 }
 
-/* Debug Panel */
-.debug-section {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 15px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e9ecef;
-}
-
-.debug-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.debug-header h3 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.2rem;
-}
-
-.debug-controls {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.debug-button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    background: #f8f9fa;
-    color: #2c3e50;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-}
-
-.debug-button:hover {
-    background: #667eea;
-    color: white;
-    border-color: #667eea;
-}
-
-.debug-content {
-    background: #1e1e1e;
-    border-radius: 8px;
-    padding: 1rem;
-    max-height: 400px;
-    overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.4;
-}
-
-.debug-log {
-    color: #e0e0e0;
-}
-
-.debug-log .log-entry {
-    margin-bottom: 0.5rem;
-    padding: 0.25rem 0;
-    border-bottom: 1px solid #333;
-}
-
-.debug-log .log-info {
-    color: #4fc3f7;
-}
-
-.debug-log .log-success {
-    color: #4caf50;
-}
-
-.debug-log .log-error {
-    color: #f44336;
-}
-
-.debug-log .log-warning {
-    color: #ff9800;
-}
-
-.debug-log .log-progress {
-    color: #9c27b0;
-}
-
-.debug-log .log-timestamp {
-    color: #666;
-    font-size: 0.8rem;
-}
-
-.debug-log .log-service {
-    color: #ff9800;
-    font-weight: bold;
-}
-
-.debug-log .log-region {
-    color: #4caf50;
-}
-
-.debug-log .log-count {
-    color: #2196f3;
-    font-weight: bold;
-}
+/* Debug Panel - Removed */
+/* Debug console removed - real-time updates provided in scanning section */
 
 /* Security Analysis Styles */
 .security-results {
@@ -1691,90 +1690,9 @@ body {
 
 }
 
-/* Loading Log Display */
-.loading-log-display {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-top: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.loading-log-header {
-    margin-bottom: 0.5rem;
-}
-
-.loading-log-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.loading-log-content {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
-    padding: 0.75rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.4;
-}
-
-.loading-log-message {
-    color: rgba(255, 255, 255, 0.9);
-    word-wrap: break-word;
-}
-
-.loading-log-timestamp {
-    color: rgba(255, 255, 255, 0.6);
-    margin-right: 0.5rem;
-}
-
-.loading-log-level {
-    display: inline-block;
-    padding: 0.2rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-right: 0.5rem;
-    text-transform: uppercase;
-}
-
-.loading-log-level.info {
-    background: rgba(52, 152, 219, 0.3);
-    color: #3498db;
-}
-
-.loading-log-level.warning {
-    background: rgba(243, 156, 18, 0.3);
-    color: #f39c12;
-}
-
-.loading-log-level.error {
-    background: rgba(231, 76, 60, 0.3);
-    color: #e74c3c;
-}
-
-.loading-log-text {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-/* Mobile responsiveness for loading log */
-@media (max-width: 768px) {
-    .loading-log-display {
-        margin-top: 0.5rem;
-        padding: 0.75rem;
-    }
-    
-    .loading-log-content {
-        padding: 0.5rem;
-        font-size: 0.8rem;
-    }
-    
-    .loading-log-level {
-        font-size: 0.7rem;
-        padding: 0.15rem 0.3rem;
-    }
-}
+/* Loading Log Display - Removed */
+/* Debug output removed from loading overlay */
+/* Real-time updates are now provided in the scanning section itself */
 
 /* Analysis Options */
 .analysis-options {
@@ -2361,7 +2279,7 @@ body {
     color: #495057;
 }
 
-/* Account Info Section */
+/* Account Information Section */
 .account-info-section {
     background: #f8f9fa;
     border-radius: 8px;
@@ -2369,44 +2287,6 @@ body {
     margin-bottom: 1.5rem;
     border-left: 4px solid #667eea;
 }
-
-.account-details {
-    display: grid;
-    gap: 0.5rem;
-}
-
-.account-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-    background: white;
-    border-radius: 4px;
-    border: 1px solid #e9ecef;
-}
-
-.account-label {
-    font-weight: 600;
-    color: #495057;
-}
-
-.account-value {
-    color: #6c757d;
-    font-family: 'Courier New', monospace;
-} 
-
-/* Service Icon SVG */
-.service-icon-svg {
-    width: 24px;
-    height: 24px;
-    margin-right: 0.5rem;
-    vertical-align: middle;
-}
-
-.service-icon-svg:hover {
-    transform: scale(1.1);
-    transition: transform 0.2s ease;
-} 
 
 /* Scan Timing Information */
 .scan-timing-info {
@@ -2440,135 +2320,4 @@ body {
     color: #2c3e50;
     font-weight: 600;
     font-family: 'Courier New', monospace;
-} 
-
-/* Modal Overlay */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 15px;
-    max-width: 90%;
-    max-height: 90%;
-    width: 800px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.25rem;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #6c757d;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-}
-
-.modal-close:hover {
-    background: #f8f9fa;
-    color: #dc3545;
-}
-
-.modal-body {
-    padding: 1.5rem;
-    overflow-y: auto;
-    flex: 1;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    padding: 1.5rem;
-    border-top: 1px solid #e9ecef;
-}
-
-.modal-btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: #667eea;
-    color: white;
-}
-
-.modal-btn:hover {
-    background: #5a6fd8;
-    transform: translateY(-1px);
-}
-
-.modal-btn.secondary {
-    background: #6c757d;
-}
-
-.modal-btn.secondary:hover {
-    background: #5a6268;
-}
-
-.policy-json {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 1rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 60vh;
-    overflow-y: auto;
-}
-
-/* Policy Button */
-.policy-read-btn {
-    background: #28a745;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-left: 0.5rem;
-}
-
-.policy-read-btn:hover {
-    background: #218838;
-    transform: translateY(-1px);
 } 
