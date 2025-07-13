@@ -28,6 +28,9 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - ✅ **Responsive design** - works on desktop and mobile
 - ✅ **Offline capability** - with appropriate warnings
 - ✅ **Honeytoken detection** - advanced canary token detection with warnings
+- ✅ **S3 exclusion notice** - clear documentation of S3 scanning exclusion for privacy
+- ✅ **Multi-region AWS scanning** - dynamic region discovery and comprehensive coverage
+- ✅ **Professional results structure** - organized output with account info and timing at top
 
 ## 🚀 Quick Start
 
@@ -60,7 +63,7 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 
 **Services Checked:**
 - **Compute**: EC2, ECS, EKS, Elastic Beanstalk, EMR, Lambda
-- **Storage**: S3, EFS, Storage Gateway
+- **Storage**: EFS, Storage Gateway (S3 excluded for privacy/security)
 - **Database**: RDS, DynamoDB, Redshift, ElastiCache, Athena
 - **Networking**: VPC, Subnets, Security Groups, Route53, API Gateway
 - **Security**: IAM, CloudTrail, Secrets Manager, Detective
@@ -69,6 +72,8 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - **AI/ML**: SageMaker, Lex, IoT
 - **Development**: CodePipeline, CodeCommit, Cloud9, SSM
 - **Management**: CloudFormation, Organizations, Backup
+
+**⚠️ S3 Scanning Excluded**: S3 bucket scanning has been intentionally excluded from this tool for security and privacy reasons. S3 buckets may contain sensitive customer data, and automated scanning could violate data privacy regulations. For S3 security assessment, consider using AWS Config, manual security reviews, or dedicated S3 security scanners.
 
 ### Microsoft Azure
 **Required Credentials:**
@@ -102,7 +107,7 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 
 ### Architecture
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+)
-- **Cloud SDKs**: AWS SDK v3, Azure MSAL, Google Cloud SDK
+- **Cloud SDKs**: AWS SDK v2.1692.0, Azure MSAL, Google Cloud SDK
 - **CDN**: unpkg.com for SDK imports
 - **Storage**: localStorage for optional profile saving
 
@@ -120,13 +125,16 @@ cloudpeep/
 │   ├── resource-mapper.js      # Resource cross-referencing
 │   ├── enhanced-analyzer.js    # Enhanced resource analysis
 │   └── scanners/
-│       ├── aws-scanner.js      # AWS service scanner
+│       ├── aws-scanner.js      # AWS service scanner (50+ services)
 │       ├── azure-scanner.js    # Azure service scanner
 │       └── gcp-scanner.js      # GCP service scanner
 ├── icons/
 │   └── favicon.svg             # Application icon
+├── docs/                       # Deployment folder
+├── deploy.sh                   # Deployment script
 ├── README.md                   # This file
 ├── TODO.md                     # Development roadmap
+├── UPDATES.md                  # Update history
 └── LICENSE                     # MIT License
 ```
 
@@ -153,6 +161,21 @@ cloudpeep/
 - CORS handling for cross-origin requests
 - Network connectivity warnings
 
+### S3 Exclusion Notice
+**S3 (Simple Storage Service) scanning has been intentionally excluded from this project due to:**
+
+1. **Security Complexity**: S3 buckets can contain sensitive data and require specialized security scanning approaches
+2. **Compliance Requirements**: S3 scanning may require specific compliance considerations (GDPR, HIPAA, etc.)
+3. **Data Privacy**: Automated scanning of S3 buckets could potentially access or expose sensitive customer data
+4. **Legal Implications**: Scanning S3 buckets without proper authorization could have legal consequences
+5. **Scope Management**: This project focuses on infrastructure enumeration rather than data scanning
+
+**For S3 security assessment, consider using:**
+- AWS Config for S3 compliance monitoring
+- Manual security reviews and audits
+- Dedicated S3 security scanners
+- AWS S3 Security Best Practices
+
 ## 🚨 Error Handling
 
 The application provides comprehensive error handling:
@@ -161,13 +184,24 @@ The application provides comprehensive error handling:
 - **Network issues** - Connectivity warnings
 - **Permission errors** - Detailed access denied messages
 - **API failures** - Graceful degradation
+- **Unavailable services** - Clear indication of services not supported in browser SDK
 
 ## 📊 Understanding Results
+
+### Results Structure
+The scan results are organized in a professional order:
+
+1. **S3 Exclusion Notice** - Clear explanation of why S3 is excluded
+2. **Account Information** - Account details and user information
+3. **Scan Timing** - Start time, end time, duration, status
+4. **Service Results** - All scanned services with detailed information
+5. **Unimplemented Services** - Services not available in the SDK
 
 ### Service Status
 - **Accessible** - Service is available and accessible
 - **Inaccessible** - Service exists but access is denied
 - **Error** - Network or authentication issues
+- **Unimplemented** - Service not available in browser SDK
 
 ### Permission Levels
 - **No Access** - Cannot access the service
@@ -283,6 +317,11 @@ This feature helps security researchers and penetration testers avoid accidental
 - Verify credentials are correct
 - Check IAM permissions
 - Ensure credentials haven't expired
+
+**"Service not available"**
+- Some AWS services are not available in the browser SDK
+- Check the unimplemented services section in results
+- Use Node.js SDK for full service coverage
 
 ### Browser Console
 Open browser developer tools (F12) to see:

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeekInTheCloud - Comprehensive Cloud Service Inspector</title>
+    <meta name="description" content="Privacy-preserving, browser-based tool to inspect and visualize services accessible using cloud API keys across AWS, Azure, and GCP">
+    <meta name="keywords" content="cloud, security, AWS, Azure, GCP, credentials, inspector, enumeration">
+    
+    <!-- Cloud SDKs via CDN -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1692.0.min.js"></script>
+    <script src="https://unpkg.com/@azure/msal-browser@2.32.1/dist/msal-browser.min.js"></script>
+    <script src="https://unpkg.com/googleapis@118.0.0/lib/googleapis.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">PeekInTheCloud</h1>
+            <p class="tagline">Comprehensive Cloud Service Inspector</p>
+            <p class="subtitle">Privacy-preserving enumeration across AWS, Azure, and GCP</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Cloud Provider Selection -->
+            <section class="provider-selection">
+                <h2>Select Cloud Provider</h2>
+                <div class="provider-dropdown">
+                    <select id="provider-select" class="provider-select">
+                        <option value="">Choose a cloud provider...</option>
+                        <option value="aws">Amazon Web Services (AWS)</option>
+                        <option value="azure">Microsoft Azure</option>
+                        <option value="gcp">Google Cloud Platform (GCP)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Credential Input Forms -->
+            <section class="credential-forms">
+                <!-- AWS Credentials -->
+                <form id="aws-form" class="credential-form" style="display: none;">
+                    <h3>AWS Credentials</h3>
+                    <div class="form-group">
+                        <label for="aws-access-key">Access Key ID</label>
+                        <input type="text" name="access-key" id="aws-access-key" placeholder="AKIA..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="aws-secret-key">Secret Access Key</label>
+                        <input type="password" name="secret-key" id="aws-secret-key" placeholder="Enter your secret key" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="aws-session-token">Session Token (Optional)</label>
+                        <input type="text" name="session-token" id="aws-session-token" placeholder="Enter session token if using temporary credentials">
+                    </div>
+                    <button type="submit" class="scan-button">Start AWS Scan</button>
+                </form>
+
+                <!-- Azure Credentials -->
+                <form id="azure-form" class="credential-form" style="display: none;">
+                    <h3>Azure Credentials</h3>
+                    <div class="form-group">
+                        <label for="azure-access-token">Access Token</label>
+                        <textarea name="access-token" id="azure-access-token" placeholder="Enter your Azure Management Access Token..." required></textarea>
+                        <small>Get this from Azure CLI: <code>az account get-access-token --resource https://management.azure.com</code></small>
+                    </div>
+                    <button type="submit" class="scan-button">Start Azure Scan</button>
+                </form>
+
+                <!-- GCP Credentials -->
+                <form id="gcp-form" class="credential-form" style="display: none;">
+                    <h3>GCP Service Account</h3>
+                    <div class="form-group">
+                        <label for="gcp-service-account">Service Account JSON</label>
+                        <textarea name="service-account-key" id="gcp-service-account" placeholder="Paste your service account JSON here..." required></textarea>
+                        <small>Download from Google Cloud Console > IAM & Admin > Service Accounts</small>
+                    </div>
+                    <button type="submit" class="scan-button">Start GCP Scan</button>
+                </form>
+            </section>
+
+            <!-- Results Section -->
+            <section id="scan-results" class="results-section">
+                <!-- Results will be populated here -->
+            </section>
+
+            <!-- Export Section -->
+            <section id="export-section" class="export-section">
+                <h3>Export & Storage</h3>
+                <div class="export-buttons">
+                    <button id="export-json" class="export-button">Export JSON</button>
+                    <button id="export-csv" class="export-button">Export CSV</button>
+                    <button id="clear-results" class="export-button">Clear Results</button>
+                </div>
+                
+                <!-- Storage Management -->
+                <div class="storage-management">
+                    <h4>💾 Stored Results</h4>
+                    <div id="stored-results-list" class="stored-results-list">
+                        <!-- Stored results will be populated here -->
+                    </div>
+                    <div class="storage-actions">
+                        <button id="load-stored-results" class="storage-btn">Load Stored Results</button>
+                        <button id="clear-all-stored" class="storage-btn danger">Clear All Stored</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Debug Panel -->
+            <section id="debug-panel" class="debug-section">
+                <div class="debug-header">
+                    <h3>🐛 Debug Console</h3>
+                    <div class="debug-controls">
+                        <button id="toggle-debug" class="debug-button">Show/Hide</button>
+                        <button id="clear-debug" class="debug-button">Clear</button>
+                        <button id="copy-debug" class="debug-button">Copy Logs</button>
+                    </div>
+                </div>
+                <div id="debug-content" class="debug-content" style="display: none;">
+                    <div id="debug-log" class="debug-log"></div>
+                </div>
+            </section>
+
+            <!-- About This Tool Section (Moved to bottom) -->
+            <section class="info-panel">
+                <h2>About This Tool</h2>
+                <p>PeekInTheCloud is a comprehensive cloud service enumeration tool that helps you analyze cloud credentials and visualize accessible services across multiple cloud providers. All processing happens in your browser - no credentials are sent to any server.</p>
+                
+                <!-- Ethical Use Disclaimer -->
+                <div class="disclaimer">
+                    <h3>⚠️ Ethical Use Only</h3>
+                    <p>This tool is intended for <strong>educational and internal security testing purposes only</strong>. 
+                    Only use it on credentials and infrastructure that you have permission to test.</p>
+                </div>
+
+                <!-- Features -->
+                <div class="features">
+                    <h3>Key Features</h3>
+                    <ul>
+                        <li>🔍 <strong>50+ AWS Services</strong> - Comprehensive enumeration including EC2, S3, Lambda, IAM, and more</li>
+                        <li>☁️ <strong>Azure Resource Discovery</strong> - Complete resource enumeration across subscriptions</li>
+                        <li>🚀 <strong>GCP Service Coverage</strong> - Full GCP service enumeration with project discovery</li>
+                        <li>🔒 <strong>Privacy-First</strong> - All processing happens locally in your browser</li>
+                        <li>📊 <strong>Rich Results</strong> - Detailed service information with export capabilities</li>
+                        <li>⚡ <strong>Multi-Region</strong> - Scan across multiple regions simultaneously</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>About Cyfinoid Research</h3>
+                    <p>Cyfinoid Research is a research-powered cybersecurity company dedicated to advancing the field of cloud security, threat intelligence, and defensive technologies. We combine cutting-edge research with practical security solutions to help organizations protect their digital assets in an ever-evolving threat landscape.</p>
+                    <p>Our team of security researchers and experts work tirelessly to develop innovative tools, methodologies, and frameworks that address real-world security challenges. From cloud security assessment to threat hunting and incident response, we provide comprehensive solutions backed by rigorous research and testing.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Important Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="https://cyfinoid.com/trainings/" target="_blank" rel="noopener noreferrer">🎓 Our Upcoming Trainings</a></li>
+                        <li><a href="https://cyfinoid.com/blog/" target="_blank" rel="noopener noreferrer">📝 Our Blogs</a></li>
+                        <li><a href="https://cyfinoid.com/opensource-by-cyfinoid/" target="_blank" rel="noopener noreferrer">🔧 Open Source Tools by Cyfinoid</a></li>
+                        <li><a href="https://cyfinoid.com/" target="_blank" rel="noopener noreferrer">🏠 Visit Cyfinoid Research</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Research & Innovation</h3>
+                    <p>At Cyfinoid Research, we believe that security research should be accessible, transparent, and collaborative. Our open-source initiatives and research publications contribute to the broader security community, helping to raise the bar for cybersecurity practices worldwide.</p>
+                    <p>We specialize in cloud security research, threat intelligence, penetration testing methodologies, and the development of defensive security tools that organizations can use to strengthen their security posture.</p>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="copyright">
+                    <p>&copy; 2024 Cyfinoid Research. All rights reserved.</p>
+                    <p>PeekInTheCloud is developed and maintained by Cyfinoid Research for the security community.</p>
+                </div>
+                <div class="footer-social">
+                    <a href="https://cyfinoid.com/" target="_blank" rel="noopener noreferrer" class="social-link">🌐 Website</a>
+                    <a href="https://cyfinoid.com/blog/" target="_blank" rel="noopener noreferrer" class="social-link">📝 Blog</a>
+                    <a href="https://cyfinoid.com/opensource-by-cyfinoid/" target="_blank" rel="noopener noreferrer" class="social-link">🔧 Open Source</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3 id="scan-status-title">Initializing Scan...</h3>
+            <p id="scan-status-message">Preparing to scan cloud services...</p>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-current">0</span>/<span id="progress-total">0</span> services
+                    (<span id="progress-percentage">0%</span>)
+                </div>
+            </div>
+            
+            <!-- Current Service Status -->
+            <div class="current-service-status">
+                <div class="service-icon" id="current-service-icon">🔍</div>
+                <div class="service-details">
+                    <div class="service-name" id="current-service-name">Initializing...</div>
+                    <div class="service-status" id="current-service-status">Preparing scanner...</div>
+                </div>
+            </div>
+            
+            <!-- Scan Statistics -->
+            <div class="scan-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Completed:</span>
+                    <span class="stat-value" id="stats-completed">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Failed:</span>
+                    <span class="stat-value" id="stats-failed">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Success Rate:</span>
+                    <span class="stat-value" id="stats-success-rate">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Honeytoken Detection Modal -->
+    <div id="honeytokenModal" class="modal-overlay hidden">
+        <div class="modal-content honeytoken-modal">
+            <div class="modal-header">
+                <h3>⚠️ Honeytoken/Canary Token Detected</h3>
+            </div>
+            <div class="modal-body">
+                <div class="honeytoken-warning">
+                    <div class="warning-icon">🚨</div>
+                    <div class="warning-content">
+                        <h4>Security Warning</h4>
+                        <p>The AWS credentials you provided appear to be <strong>honeytoken/canary tokens</strong> designed to detect unauthorized access.</p>
+                        
+                        <div class="canary-details">
+                            <div class="canary-type" id="canary-type">Unknown Canary</div>
+                            <div class="account-id">Account ID: <span id="canary-account-id">Unknown</span></div>
+                            <div class="canary-message" id="canary-message">This is a canary token that will alert security teams if used.</div>
+                        </div>
+                        
+                        <div class="warning-alert">
+                            <strong>⚠️ WARNING:</strong> If you proceed with the scan, this will trigger alerts and notify the token owner of your activity.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelHoneytokenScan" class="btn btn-secondary">Cancel (Recommended)</button>
+                <button id="proceedHoneytokenScan" class="btn btn-danger">Proceed Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/security-rules.js"></script>
+    <script src="js/resource-mapper.js"></script>
+    <script src="js/enhanced-analyzer.js"></script>
+    <script src="js/security/frameworks/hipaa.js"></script>
+    <script src="js/security/frameworks/pci.js"></script>
+    <script src="js/security/frameworks/cis.js"></script>
+    <script src="js/security/threat-detector.js"></script>
+    <script src="js/security/risk-assessor.js"></script>
+    <script src="js/security/security-analyzer.js"></script>
+    <script src="js/scanners/aws-scanner.js"></script>
+    <script src="js/scanners/azure-scanner.js"></script>
+    <script src="js/scanners/gcp-scanner.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            window.app = new PeekInTheCloud();
+            window.app.initialize();
+        });
+    </script>
+</body>
+</html> 

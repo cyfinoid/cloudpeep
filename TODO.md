@@ -172,7 +172,16 @@
 
 ## ✅ Recently Completed Features
 
-### Honeytoken Detection ✅ COMPLETED
+### AWS Scanner Improvements ✅ COMPLETED (13 July 2025)
+- ✅ **S3 Exclusion Notice**: Clear documentation and notice about S3 scanning exclusion
+- ✅ **Dynamic Region Discovery**: Automatic discovery of active AWS regions via EC2 API
+- ✅ **Constructor Error Fixes**: Fixed "is not a constructor" errors for SageMaker, MediaPackage, MediaLive, MediaConvert, Glue, StepFunctions, Detective
+- ✅ **Professional Results Structure**: Reorganized results with account info and scan timing at the top
+- ✅ **Region Info Removal**: Removed unnecessary region_info section from results
+- ✅ **Enhanced Error Categorization**: Improved error handling with categorizeError() utility method
+- ✅ **AWS SDK Version Update**: Updated to AWS SDK v2.1692.0 for better service support
+
+### Honeytoken Detection ✅ COMPLETED (12 July 2025)
 - ✅ **Real-time Detection**: Automatically detects known honeytoken accounts
 - ✅ **Warning Modal**: Shows detailed warning before scanning canary tokens
 - ✅ **Account ID Extraction**: Extracts AWS Account ID from Access Key ID
@@ -180,20 +189,20 @@
 - ✅ **User Choice**: Clear options to proceed or cancel (defaults to cancel)
 - ✅ **Visual Warnings**: Red warning banner in results when canary tokens are scanned
 
-### Advanced Security Analysis ✅ COMPLETED
+### Advanced Security Analysis ✅ COMPLETED (12 July 2025)
 - ✅ **Security Scoring**: Overall security score (0-100) with detailed breakdown
 - ✅ **Risk Assessment**: Technical and business impact risk analysis
 - ✅ **Threat Detection**: Identify attack vectors and threat paths
 - ✅ **Security Findings**: Detailed analysis of security issues by severity
 
-### Enhanced UI/UX ✅ COMPLETED
+### Enhanced UI/UX ✅ COMPLETED (12 July 2025)
 - ✅ **Progress Tracking**: Detailed loading overlay with progress tracking
 - ✅ **Debug Panel**: Real-time debugging with comprehensive logging
 - ✅ **Modal System**: Proper modal overlay system with CSS styling
 - ✅ **Responsive Design**: Mobile-friendly interface
 - ✅ **Export Capabilities**: JSON and CSV export with detailed results
 
-### Comprehensive Service Coverage ✅ COMPLETED
+### Comprehensive Service Coverage ✅ COMPLETED (12 July 2025)
 - ✅ **AWS**: 50+ services across all categories
 - ✅ **Azure**: Complete resource enumeration with comprehensive coverage
 - ✅ **GCP**: Full service coverage with project discovery

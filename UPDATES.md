@@ -3,8 +3,17 @@
 ## 🚀 Latest Updates
 
 ### Version 1.0 - Production Release ✅ COMPLETED
-**Date**: 12 July 2025
+**Date**: 13 July 2025
 **Status**: Production Ready
+
+#### AWS Scanner Improvements ✅ COMPLETED
+- ✅ **S3 Exclusion Notice**: Clear documentation and notice about S3 scanning exclusion for privacy and security
+- ✅ **Dynamic Region Discovery**: Automatic discovery of active AWS regions via EC2 describeRegions() API
+- ✅ **Constructor Error Fixes**: Fixed "is not a constructor" errors for SageMaker, MediaPackage, MediaLive, MediaConvert, Glue, StepFunctions, Detective
+- ✅ **Professional Results Structure**: Reorganized results with account info and scan timing at the top
+- ✅ **Region Info Removal**: Removed unnecessary region_info section from results
+- ✅ **Enhanced Error Categorization**: Improved error handling with categorizeError() utility method
+- ✅ **AWS SDK Version Update**: Updated to AWS SDK v2.1692.0 for better service support and reliability
 
 #### Core Application Features
 - ✅ **Multi-cloud Support**: AWS, Azure, and GCP integration
@@ -16,7 +25,7 @@
 
 #### Security & Privacy Features
 - ✅ **Honeytoken Detection**: Advanced canary token detection with warnings
-- ✅ **Multi-region Support**: AWS scanning across 16 regions
+- ✅ **Multi-region Support**: AWS scanning across 16 regions with dynamic discovery
 - ✅ **Service Filtering**: Category-based and search filtering
 - ✅ **Progress Tracking**: Detailed scan progress with statistics
 - ✅ **Real-time Debugging**: Comprehensive logging and progress tracking
@@ -29,6 +38,23 @@
 - ✅ **Security Posture Scoring**: Calculate overall security scores and risk levels
 
 ## 📋 Recent Major Updates
+
+### AWS Scanner Enhancements ✅ COMPLETED
+**Date**: 13 July 2025
+**Features Added**:
+- **S3 Exclusion Notice**: Comprehensive notice explaining why S3 scanning is excluded for privacy and security reasons
+- **Dynamic Region Discovery**: Automatic discovery of active AWS regions using EC2 describeRegions() API instead of hardcoded list
+- **Constructor Error Fixes**: Added proper checks for AWS service availability in browser SDK to prevent "is not a constructor" errors
+- **Professional Results Structure**: Reorganized scan results with account info and scan timing at the top
+- **Enhanced Error Handling**: Improved error categorization with descriptive messages for different types of AWS errors
+- **AWS SDK Update**: Updated to latest AWS SDK v2.1692.0 for better service support
+
+**Technical Implementation**:
+- **Region Discovery**: Uses EC2 describeRegions() API to discover active regions based on OptInStatus
+- **Service Availability Checks**: Added typeof checks before service instantiation
+- **Error Categorization**: New categorizeError() method to classify AWS errors with descriptive messages
+- **Results Reorganization**: Clean structure with S3 notice, account info, timing, and service results
+- **Fallback Handling**: Graceful fallback to minimal region set if discovery fails
 
 ### Honeytoken Detection System ✅ COMPLETED
 **Date**: 12 July 2025
@@ -225,13 +251,16 @@ cloudpeep/
 - **Error Handling**: Comprehensive error messages and notifications
 - **Modal System**: Professional modal overlay system
 - **Honeytoken Protection**: Advanced canary token detection
+- **S3 Exclusion Notice**: Clear documentation of privacy-focused exclusions
+- **Professional Results**: Organized output with account info and timing at top
 
 ### Technical Enhancements
 - **Architecture**: Modular scanner system
-- **Multi-Region**: AWS scanning across 16 regions
+- **Multi-Region**: AWS scanning across 16 regions with dynamic discovery
 - **Error Handling**: Graceful degradation and user feedback
 - **UI/UX**: Responsive design with advanced features
 - **Security**: Honeytoken detection and warning system
+- **AWS SDK**: Updated to latest version for better service support
 
 ## 🎉 Current Status
 
@@ -239,12 +268,13 @@ cloudpeep/
 **Core Features**: ✅ **ALL IMPLEMENTED**
 **Security Analysis**: ✅ **COMPREHENSIVE**
 **Honeytoken Detection**: ✅ **FULLY IMPLEMENTED**
+**AWS Scanner**: ✅ **FULLY ENHANCED WITH LATEST IMPROVEMENTS**
 **Compliance Features**: ⏳ **PLANNED FOR VERSION 1.1**
 **Documentation**: ✅ **COMPLETE**
 
-The PeekInTheCloud application is now a **comprehensive, professional-grade cloud service enumeration tool** that provides unmatched coverage, advanced security analysis, privacy-first design, and protection against honeytoken alerts. Compliance features are planned for future releases.
+The PeekInTheCloud application is now a **comprehensive, professional-grade cloud service enumeration tool** that provides unmatched coverage, advanced security analysis, privacy-first design, protection against honeytoken alerts, and clear documentation of security-focused exclusions. Compliance features are planned for future releases.
 
 ---
 
-**Last Updated**: 12 July 2025
+**Last Updated**: 13 July 2025
 **Next Major Update**: Version 1.1 - Enhanced Compliance Features 
