@@ -73,7 +73,7 @@ A privacy-preserving, browser-based tool designed to help users **inspect and vi
 - **Development**: CodePipeline, CodeCommit, Cloud9, SSM
 - **Management**: CloudFormation, Organizations, Backup
 
-**⚠️ S3 Scanning Excluded**: S3 bucket scanning has been intentionally excluded from this tool for security and privacy reasons. S3 buckets may contain sensitive customer data, and automated scanning could violate data privacy regulations. For S3 security assessment, consider using AWS Config, manual security reviews, or dedicated S3 security scanners.
+**⚠️ S3 Scanning Excluded**: S3 bucket scanning is out of scope for this project at this point due to implementational limitations.
 
 ### Microsoft Azure
 **Required Credentials:**

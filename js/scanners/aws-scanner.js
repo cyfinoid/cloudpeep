@@ -922,7 +922,7 @@ class AWSScanner {
             type: 'exclusion_notice',
             service: 'S3 (Simple Storage Service)',
             title: '⚠️ S3 Scanning Excluded',
-            message: 'S3 bucket scanning has been intentionally excluded from this tool for security and privacy reasons.',
+            message: 'S3 bucket scanning is out of scope for this project at this point due to implementational limitations.',
             details: [
                 'S3 buckets may contain sensitive customer data',
                 'Automated scanning could violate data privacy regulations',

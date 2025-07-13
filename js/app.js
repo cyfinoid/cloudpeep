@@ -32,7 +32,7 @@ class PeekInTheCloud {
 
     initialize() {
         this.setupEventListeners();
-        this.setupDebugConsole();
+        // Debug console removed - real-time updates provided in scanning section
         this.loadSavedCredentials();
         this.populateStoredResults();
         console.log('PeekInTheCloud initialized successfully');
@@ -314,18 +314,7 @@ class PeekInTheCloud {
             this.clearAllStoredResults();
         });
 
-        // Debug panel
-        document.getElementById('toggle-debug').addEventListener('click', () => {
-            this.toggleDebugPanel();
-        });
-
-        document.getElementById('clear-debug').addEventListener('click', () => {
-            this.clearDebugLog();
-        });
-
-        document.getElementById('copy-debug').addEventListener('click', () => {
-            this.copyDebugLog();
-        });
+        // Debug panel controls removed - debug console no longer needed
     }
 
     switchProvider(provider) {
@@ -1602,98 +1591,7 @@ class PeekInTheCloud {
     }
 
     // Debug Console Methods
-    setupDebugConsole() {
-        // Override console methods to capture logs
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalInfo = console.info;
-
-        console.log = (...args) => {
-            originalLog.apply(console, args);
-            this.addDebugLog('info', args);
-        };
-
-        console.error = (...args) => {
-            originalError.apply(console, args);
-            this.addDebugLog('error', args);
-        };
-
-        console.warn = (...args) => {
-            originalWarn.apply(console, args);
-            this.addDebugLog('warning', args);
-        };
-
-        console.info = (...args) => {
-            originalInfo.apply(console, args);
-            this.addDebugLog('info', args);
-        };
-
-        // Add initial debug message
-        this.addDebugLog('info', ['Debug console initialized. All console logs will be captured here.']);
-    }
-
-    addDebugLog(level, args) {
-        const debugLog = document.getElementById('debug-log');
-        if (!debugLog) return;
-
-        const timestamp = new Date().toLocaleTimeString();
-        const message = args.map(arg => 
-            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(' ');
-
-        const logEntry = document.createElement('div');
-        logEntry.className = `log-entry log-${level}`;
-        logEntry.innerHTML = `
-            <span class="log-timestamp">[${timestamp}]</span>
-            <span class="log-message">${this.sanitizeHtml(message)}</span>
-        `;
-
-        debugLog.appendChild(logEntry);
-        debugLog.scrollTop = debugLog.scrollHeight;
-
-        // Limit log entries to prevent memory issues
-        const entries = debugLog.querySelectorAll('.log-entry');
-        if (entries.length > 1000) {
-            entries[0].remove();
-        }
-
-        // Update loading modal with latest log message
-        this.updateLoadingModalLog(message, level);
-    }
-
-    toggleDebugPanel() {
-        const debugContent = document.getElementById('debug-content');
-        const isVisible = debugContent.style.display !== 'none';
-        debugContent.style.display = isVisible ? 'none' : 'block';
-        
-        const toggleButton = document.getElementById('toggle-debug');
-        toggleButton.textContent = isVisible ? 'Show' : 'Hide';
-    }
-
-    clearDebugLog() {
-        const debugLog = document.getElementById('debug-log');
-        if (debugLog) {
-            debugLog.innerHTML = '';
-            this.addDebugLog('info', ['Debug log cleared.']);
-        }
-    }
-
-    async copyDebugLog() {
-        const debugLog = document.getElementById('debug-log');
-        if (!debugLog) return;
-
-        const logText = Array.from(debugLog.querySelectorAll('.log-entry'))
-            .map(entry => entry.textContent)
-            .join('\n');
-
-        try {
-            await navigator.clipboard.writeText(logText);
-            this.showNotification('Debug log copied to clipboard', 'success');
-        } catch (error) {
-            this.showNotification('Failed to copy debug log', 'error');
-        }
-    }
+    // Debug console methods removed - real-time updates provided in scanning section
 
     sanitizeHtml(text) {
         const div = document.createElement('div');
@@ -1707,44 +1605,8 @@ class PeekInTheCloud {
      * @param {string} level - The log level (info, error, warning)
      */
     updateLoadingModalLog(message, level) {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (!loadingOverlay || loadingOverlay.classList.contains('hidden')) {
-            return; // Only update if loading modal is visible
-        }
-
-        // Find or create the log display area in the loading modal
-        let logDisplay = loadingOverlay.querySelector('.loading-log-display');
-        if (!logDisplay) {
-            logDisplay = document.createElement('div');
-            logDisplay.className = 'loading-log-display';
-            logDisplay.innerHTML = `
-                <div class="loading-log-header">
-                    <span class="loading-log-title">📋 Latest Activity</span>
-                </div>
-                <div class="loading-log-content">
-                    <div class="loading-log-message" id="loading-latest-log"></div>
-                </div>
-            `;
-            
-            // Insert after the scan statistics
-            const scanStats = loadingOverlay.querySelector('.scan-stats');
-            if (scanStats) {
-                scanStats.parentNode.insertBefore(logDisplay, scanStats.nextSibling);
-            }
-        }
-
-        // Update the latest log message
-        const latestLogElement = logDisplay.querySelector('#loading-latest-log');
-        if (latestLogElement) {
-            const timestamp = new Date().toLocaleTimeString();
-            const levelClass = level === 'error' ? 'error' : level === 'warning' ? 'warning' : 'info';
-            
-            latestLogElement.innerHTML = `
-                <span class="loading-log-timestamp">[${timestamp}]</span>
-                <span class="loading-log-level ${levelClass}">${level.toUpperCase()}</span>
-                <span class="loading-log-text">${this.sanitizeHtml(message)}</span>
-            `;
-        }
+        // Removed debug log display from loading overlay
+        // Real-time updates are now provided in the scanning section itself
     }
 
     // Security Results Helper Methods
