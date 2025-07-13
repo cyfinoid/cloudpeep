@@ -1391,14 +1391,26 @@ class PeekInTheCloud {
             
             Object.entries(data).forEach(([key, value]) => {
                 if (Array.isArray(value)) {
-                    formatted.push(`
-                        <div class="data-section">
-                            <h4>${this.capitalizeFirst(key)} (${value.length})</h4>
-                            <div class="data-table">
-                                ${this.formatArrayAsTable(value)}
+                    // Special handling for IAM policies
+                    if (key === 'policies' && value.length > 0 && value[0].document) {
+                        formatted.push(`
+                            <div class="data-section">
+                                <h4>${this.capitalizeFirst(key)} (${value.length})</h4>
+                                <div class="data-table">
+                                    ${this.formatPoliciesWithButtons(value)}
+                                </div>
                             </div>
-                        </div>
-                    `);
+                        `);
+                    } else {
+                        formatted.push(`
+                            <div class="data-section">
+                                <h4>${this.capitalizeFirst(key)} (${value.length})</h4>
+                                <div class="data-table">
+                                    ${this.formatArrayAsTable(value)}
+                                </div>
+                            </div>
+                        `);
+                    }
                 } else if (typeof value === 'object' && value !== null) {
                     formatted.push(`
                         <div class="data-section">
@@ -1419,6 +1431,77 @@ class PeekInTheCloud {
         } else {
             return `<pre class="json-data">${JSON.stringify(data, null, 2)}</pre>`;
         }
+    }
+
+    formatPoliciesWithButtons(policies) {
+        if (policies.length === 0) {
+            return '<div class="no-data">No policies found</div>';
+        }
+
+        const headers = ['Policy Name', 'ARN', 'Create Date', 'Actions'];
+        const headerRow = headers.map(h => `<th>${h}</th>`).join('');
+        const dataRows = policies.map((policy, index) => {
+            const hasDocument = policy.document !== null && policy.document !== undefined;
+            const readButton = hasDocument ? 
+                `<button class="policy-read-btn" onclick="app.showPolicyDocument('${policy.policyName}', '${this.escapeHtml(JSON.stringify(policy.document))}')">Read Policy</button>` : 
+                '<span class="no-document">No document available</span>';
+            
+            return `<tr>
+                <td>${policy.policyName || ''}</td>
+                <td>${policy.arn || ''}</td>
+                <td>${policy.createDate ? new Date(policy.createDate).toLocaleDateString() : ''}</td>
+                <td>${readButton}</td>
+            </tr>`;
+        }).join('');
+
+        return `
+            <table>
+                <thead><tr>${headerRow}</tr></thead>
+                <tbody>${dataRows}</tbody>
+            </table>
+        `;
+    }
+
+    showPolicyDocument(policyName, encodedDocument) {
+        try {
+            // URL decode the document
+            const decodedDocument = decodeURIComponent(encodedDocument);
+            
+            // Parse and beautify the JSON
+            const policyJson = JSON.parse(decodedDocument);
+            const beautifiedJson = JSON.stringify(policyJson, null, 2);
+            
+            // Update modal content
+            document.getElementById('policyModalTitle').textContent = `Policy Document: ${policyName}`;
+            document.getElementById('policyModalContent').textContent = beautifiedJson;
+            
+            // Show modal
+            document.getElementById('policyModal').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error parsing policy document:', error);
+            this.showNotification('Error parsing policy document', 'error');
+        }
+    }
+
+    closePolicyModal() {
+        document.getElementById('policyModal').classList.add('hidden');
+    }
+
+    copyPolicyToClipboard() {
+        const policyContent = document.getElementById('policyModalContent').textContent;
+        
+        navigator.clipboard.writeText(policyContent).then(() => {
+            this.showNotification('Policy document copied to clipboard', 'success');
+        }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+            this.showNotification('Failed to copy to clipboard', 'error');
+        });
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     formatArrayAsTable(array) {
