@@ -1158,12 +1158,73 @@ class PeekInTheCloud {
 
         providerResults.appendChild(header);
 
+        // Add scan timing information before collapsible sections
+        if (results.scan_timing) {
+            const timingDiv = document.createElement('div');
+            timingDiv.className = 'scan-timing-info';
+            
+            const startDate = new Date(results.scan_timing.startDate).toLocaleString();
+            const endDate = new Date(results.scan_timing.endDate).toLocaleString();
+            const duration = Utils.DataUtils.formatDuration(results.scan_timing.totalDuration);
+            
+            timingDiv.innerHTML = `
+                <div class="timing-details">
+                    <div class="timing-item">
+                        <span class="timing-label">Start Date:</span>
+                        <span class="timing-value">${startDate}</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">End Date:</span>
+                        <span class="timing-value">${endDate}</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total Duration:</span>
+                        <span class="timing-value">${duration}</span>
+                    </div>
+                </div>
+            `;
+            
+            providerResults.appendChild(timingDiv);
+        }
+
+        // Add account information before collapsible sections
+        if (results.account_info) {
+            const accountInfo = results.account_info;
+            const accountDiv = document.createElement('div');
+            accountDiv.className = 'account-info-section';
+            
+            accountDiv.innerHTML = `
+                <div class="account-details">
+                    <div class="account-item">
+                        <span class="account-label">Account ID:</span>
+                        <span class="account-value">${accountInfo.accountId || 'Unknown'}</span>
+                    </div>
+                    <div class="account-item">
+                        <span class="account-label">User Type:</span>
+                        <span class="account-value">${accountInfo.userType || 'Unknown'}</span>
+                    </div>
+                    <div class="account-item">
+                        <span class="account-label">User ID:</span>
+                        <span class="account-value">${accountInfo.userId || 'Unknown'}</span>
+                    </div>
+                    ${accountInfo.arn ? `
+                    <div class="account-item">
+                        <span class="account-label">ARN:</span>
+                        <span class="account-value">${accountInfo.arn}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            providerResults.appendChild(accountDiv);
+        }
+
         const resultsContent = document.createElement('div');
         resultsContent.className = 'results-content';
 
         Object.entries(results).forEach(([service, data]) => {
-            // Skip unimplemented services and account_info - they will be handled separately
-            if (service === 'unimplemented_services' || service === 'account_info') {
+            // Skip unimplemented services, account_info, and scan_timing - they will be handled separately
+            if (service === 'unimplemented_services' || service === 'account_info' || service === 'scan_timing') {
                 return;
             }
 
@@ -1235,46 +1296,6 @@ class PeekInTheCloud {
                 </div>
             `;
             resultsContent.appendChild(unimplementedDiv);
-        }
-
-        // Add account info section at the end
-        if (results.account_info) {
-            const accountInfo = results.account_info;
-            const accountDiv = document.createElement('div');
-            accountDiv.className = 'service-result';
-            accountDiv.innerHTML = `
-                <div class="service-header info" onclick="app.toggleServiceResult(this)">
-                    <span class="service-icon">👤</span>
-                    <span class="service-name">Account Information</span>
-                    <span class="service-status">Account Details</span>
-                    <span class="expand-icon">▶</span>
-                </div>
-                <div class="service-content" style="display: none;">
-                    <div class="account-info-section">
-                        <div class="account-details">
-                            <div class="account-item">
-                                <span class="account-label">Account ID:</span>
-                                <span class="account-value">${accountInfo.accountId || 'Unknown'}</span>
-                            </div>
-                            <div class="account-item">
-                                <span class="account-label">User Type:</span>
-                                <span class="account-value">${accountInfo.userType || 'Unknown'}</span>
-                            </div>
-                            <div class="account-item">
-                                <span class="account-label">User ID:</span>
-                                <span class="account-value">${accountInfo.userId || 'Unknown'}</span>
-                            </div>
-                            ${accountInfo.arn ? `
-                            <div class="account-item">
-                                <span class="account-label">ARN:</span>
-                                <span class="account-value">${accountInfo.arn}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-            resultsContent.appendChild(accountDiv);
         }
 
         providerResults.appendChild(resultsContent);

@@ -2178,47 +2178,45 @@ body {
     color: #495057;
 }
 
-/* Account Info Section */
+/* Account Information Section */
 .account-info-section {
-    padding: 1rem;
     background: #f8f9fa;
-    border-radius: 6px;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #667eea;
 }
 
-.account-details {
-    display: grid;
-    gap: 0.5rem;
+/* Scan Timing Information */
+.scan-timing-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #28a745;
 }
 
-.account-item {
+.timing-details {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-    background: white;
-    border-radius: 4px;
-    border: 1px solid #e9ecef;
+    gap: 2rem;
+    flex-wrap: wrap;
 }
 
-.account-label {
-    font-weight: 600;
-    color: #495057;
+.timing-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
-.account-value {
+.timing-label {
+    font-size: 0.875rem;
     color: #6c757d;
-    font-family: 'Courier New', monospace;
-} 
-
-/* Service Icon SVG */
-.service-icon-svg {
-    width: 24px;
-    height: 24px;
-    margin-right: 0.5rem;
-    vertical-align: middle;
+    font-weight: 500;
 }
 
-.service-icon-svg:hover {
-    transform: scale(1.1);
-    transition: transform 0.2s ease;
+.timing-value {
+    font-size: 1rem;
+    color: #2c3e50;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
 } 
