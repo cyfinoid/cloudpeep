@@ -15,6 +15,7 @@ class AWSScanner {
         this.results = {};
         this.currentRegion = 'us-east-1';
         this.accountInfo = null;
+        this.activeRegions = null;
     }
 
     async scan(credentials, selectedServices = null) {
@@ -37,6 +38,13 @@ class AWSScanner {
             console.log(`[${scanId}] 🔍 Extracting account information...`);
             await this.extractAccountInfo();
             console.log(`[${scanId}] ✅ Account information extracted:`, this.accountInfo);
+            
+            // Discover active regions
+            console.log(`[${scanId}] 🌍 Discovering active regions...`);
+            await this.discoverActiveRegions();
+            console.log(`[${scanId}] ✅ Active regions discovered: ${this.regions.length} regions`);
+            console.log(`[${scanId}] 📍 Active regions:`, this.activeRegions);
+            console.log(`[${scanId}] 📍 Regions to scan:`, this.regions);
             
             // Get available services
             const services = selectedServices || this.getAvailableServices();
@@ -148,6 +156,152 @@ class AWSScanner {
         }
     }
 
+    async discoverActiveRegions() {
+        try {
+            console.log('🔍 Discovering active regions for this account...');
+            
+            // Use EC2 to discover regions (most reliable method)
+            const ec2 = new AWS.EC2();
+            const regionsData = await ec2.describeRegions().promise();
+            
+            console.log('🔍 Raw regions data:', regionsData);
+            console.log('🔍 Regions array:', regionsData.Regions);
+            
+            // Analyze the response structure
+            this.analyzeRegionResponse(regionsData);
+            
+            if (regionsData.Regions && regionsData.Regions.length > 0) {
+                console.log('🔍 First region example:', regionsData.Regions[0]);
+            }
+            
+            // Filter regions based on actual response structure
+            const activeRegions = regionsData.Regions
+                .filter(region => {
+                    // All regions with "opt-in-not-required" are available
+                    if (region.OptInStatus === 'opt-in-not-required') {
+                        console.log(`✅ Region ${region.RegionName} is available (opt-in-not-required)`);
+                        return true;
+                    }
+                    // Log other opt-in statuses for debugging
+                    console.log(`🔍 Region ${region.RegionName} has OptInStatus: ${region.OptInStatus}`);
+                    return false;
+                })
+                .map(region => region.RegionName)
+                .sort();
+            
+            console.log(`✅ Discovered ${activeRegions.length} active regions:`, activeRegions);
+            
+            // If no active regions found, use minimal fallback
+            if (activeRegions.length === 0) {
+                console.log('⚠️  No active regions found, using minimal fallback list');
+                const minimalRegions = this.getMinimalRegionSet();
+                
+                this.activeRegions = minimalRegions;
+                this.regions = minimalRegions;
+                
+                console.log('📋 Using minimal region set:', minimalRegions);
+                return minimalRegions;
+            }
+            
+            // Store the active regions
+            this.activeRegions = activeRegions;
+            
+            // Update the regions list to use only active regions
+            this.regions = activeRegions;
+            
+            return activeRegions;
+        } catch (error) {
+            console.error('Error discovering active regions:', error);
+            console.log('⚠️  Falling back to hardcoded region list');
+            
+            // Store the original hardcoded list as active regions for fallback
+            const fallbackRegions = [
+                'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+                'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1',
+                'eu-north-1', 'ap-southeast-1', 'ap-southeast-2',
+                'ap-northeast-1', 'ap-northeast-2', 'ap-south-1',
+                'sa-east-1', 'ca-central-1'
+            ];
+            
+            this.activeRegions = fallbackRegions;
+            this.regions = fallbackRegions;
+            
+            return fallbackRegions;
+        }
+    }
+
+    async getDetailedRegionInfo() {
+        try {
+            const ec2 = new AWS.EC2({ region: 'us-east-1' });
+            const regionsData = await ec2.describeRegions().promise();
+            
+            const detailedRegions = regionsData.Regions.map(region => ({
+                name: region.RegionName,
+                endpoint: region.Endpoint,
+                optInStatus: region.OptInStatus || 'unknown',
+                isAvailable: region.OptInStatus === 'opt-in-not-required'
+            }));
+            
+            return {
+                totalRegions: detailedRegions.length,
+                availableRegions: detailedRegions.filter(r => r.isAvailable),
+                unavailableRegions: detailedRegions.filter(r => !r.isAvailable),
+                optInRequiredRegions: detailedRegions.filter(r => r.optInStatus === 'opt-in-required'),
+                optInNotRequiredRegions: detailedRegions.filter(r => r.optInStatus === 'opt-in-not-required')
+            };
+        } catch (error) {
+            console.error('Error getting detailed region info:', error);
+            return null;
+        }
+    }
+
+    async testRegionAccess(region) {
+        try {
+            const ec2 = new AWS.EC2({ region });
+            await ec2.describeRegions().promise();
+            return true;
+        } catch (error) {
+            console.error(`❌ No access to region ${region}:`, error.message);
+            return false;
+        }
+    }
+
+    getMinimalRegionSet() {
+        // Return a minimal set of commonly available regions
+        return [
+            'us-east-1',  // N. Virginia - most commonly available
+            'us-west-2',  // Oregon - commonly available
+            'eu-west-1'   // Ireland - commonly available
+        ];
+    }
+
+    analyzeRegionResponse(regionsData) {
+        console.log('🔍 Analyzing region response structure...');
+        
+        if (!regionsData || !regionsData.Regions) {
+            console.log('❌ No regions data found');
+            return;
+        }
+        
+        console.log(`🔍 Total regions found: ${regionsData.Regions.length}`);
+        
+        if (regionsData.Regions.length > 0) {
+            const firstRegion = regionsData.Regions[0];
+            console.log('🔍 First region properties:', Object.keys(firstRegion));
+            console.log('🔍 First region full object:', firstRegion);
+            
+            // Check for common properties
+            const properties = ['RegionName', 'Endpoint', 'State', 'OptInStatus'];
+            properties.forEach(prop => {
+                if (firstRegion.hasOwnProperty(prop)) {
+                    console.log(`✅ Property '${prop}' found: ${firstRegion[prop]}`);
+                } else {
+                    console.log(`❌ Property '${prop}' not found`);
+                }
+            });
+        }
+    }
+
     determineUserType(arn) {
         if (!arn) return 'Unknown';
         
@@ -166,7 +320,7 @@ class AWSScanner {
 
     getAvailableServices() {
         return [
-            'ec2', 's3', 'rds', 'lambda', 'cloudfront', 'dynamodb', 'iam',
+            'ec2', 'rds', 'lambda', 'cloudfront', 'dynamodb', 'iam',
             'sns', 'sqs', 'ecr', 'elasticbeanstalk', 'route53', 'cloudwatch',
             'codepipeline', 'sagemaker', 'secretsmanager', 'glue', 'stepfunctions',
             'eks', 'cloudtrail', 'kinesis', 'redshift', 'elasticache', 'ecs',
@@ -196,7 +350,6 @@ class AWSScanner {
             emr: this.scanEMR,
             
             // Storage Services
-            s3: this.scanS3,
             efs: this.scanEFS,
             storagegateway: this.scanStorageGateway,
             
@@ -638,64 +791,56 @@ class AWSScanner {
     }
 
     // Storage Services
-    async scanS3() {
-        try {
-            console.log('🪣 Starting S3 scan...');
-            
-            // Update detailed progress
-            if (this.onDetailedProgressUpdate) {
-                this.onDetailedProgressUpdate('s3', 'buckets', 'Listing S3 buckets', '1/1');
+    /**
+     * S3 SCANNING IS OUT OF SCOPE
+     * 
+     * S3 (Simple Storage Service) scanning has been intentionally excluded from this project
+     * due to the following considerations:
+     * 
+     * 1. **Security Complexity**: S3 buckets can contain sensitive data and require
+     *    specialized security scanning approaches
+     * 2. **Compliance Requirements**: S3 scanning may require specific compliance
+     *    considerations (GDPR, HIPAA, etc.)
+     * 3. **Data Privacy**: Automated scanning of S3 buckets could potentially access
+     *    or expose sensitive customer data
+     * 4. **Legal Implications**: Scanning S3 buckets without proper authorization
+     *    could have legal consequences
+     * 5. **Scope Management**: This project focuses on infrastructure enumeration
+     *    rather than data scanning
+     * 
+     * For S3 security assessment, consider using specialized tools like:
+     * - AWS Config
+     * - S3 Security Best Practices
+     * - Dedicated S3 security scanners
+     * - Manual security reviews
+     */
+    
+    /**
+     * Get information about out-of-scope services
+     * @returns {Object} Out-of-scope services information
+     */
+    getOutOfScopeServices() {
+        return {
+            s3: {
+                service: 'Simple Storage Service (S3)',
+                reason: 'Data privacy and security considerations',
+                description: 'S3 buckets may contain sensitive data requiring specialized security assessment',
+                risks: [
+                    'Potential access to sensitive customer data',
+                    'Legal and compliance implications',
+                    'Data privacy violations',
+                    'Unauthorized data exposure'
+                ],
+                alternatives: [
+                    'AWS Config for S3 compliance monitoring',
+                    'Manual security reviews and audits',
+                    'Dedicated S3 security scanners',
+                    'AWS S3 Security Best Practices',
+                    'S3 bucket policy analysis tools'
+                ],
+                scope_note: 'This project focuses on infrastructure enumeration rather than data scanning'
             }
-            
-            // Use the same simple approach as sample.html
-            const s3 = new AWS.S3();
-            
-            // Simple listBuckets call like in the working example
-            const data = await s3.listBuckets().promise();
-            
-            if (data && data.Buckets) {
-                const buckets = data.Buckets.map(bucket => ({
-                    name: bucket.Name,
-                    creationDate: bucket.CreationDate ? bucket.CreationDate.toISOString() : new Date().toISOString(),
-                    location: 'Unknown',
-                    encryption: null,
-                    versioning: false,
-                    publicAccessBlock: {
-                        BlockPublicAcls: false,
-                        IgnorePublicAcls: false,
-                        BlockPublicPolicy: false,
-                        RestrictPublicBuckets: false
-                    }
-                }));
-                
-                this.addResult('s3', { 
-                    buckets,
-                    status: 'accessible',
-                    accessible: true,
-                    permission: 'list',
-                    apiCalls: ['ListBuckets'],
-                    rawResponse: data
-                });
-            } else {
-                this.addResult('s3', { 
-                    buckets: [],
-                    status: 'accessible',
-                    accessible: true,
-                    permission: 'list',
-                    apiCalls: ['ListBuckets'],
-                    message: 'No buckets found'
-                });
-            }
-            
-        } catch (error) {
-            console.error('Error scanning S3:', error);
-            this.addResult('s3', { 
-                error: error.message,
-                status: 'inaccessible',
-                accessible: false,
-                permission: 'none'
-            });
-        }
+        };
     }
 
 
@@ -1255,7 +1400,7 @@ class AWSScanner {
 
     async scanCloudTrail() {
         try {
-            const cloudtrail = new AWS.CloudTrail();
+            const cloudtrail = new AWS.CloudTrail({ region: 'us-east-1' });
             const trails = [];
 
             const trailsData = await cloudtrail.describeTrails().promise();
@@ -1567,8 +1712,8 @@ class AWSScanner {
         
         for (const region of this.regions) {
             try {
-                const workspaces = new AWS.WorkSpaces({ region });
-                const workspacesData = await workspaces.describeWorkspaces().promise();
+                const workspacesClient = new AWS.WorkSpaces({ region });
+                const workspacesData = await workspacesClient.describeWorkspaces().promise();
                 
                 for (const workspace of workspacesData.Workspaces) {
                     workspaces.push({
@@ -1842,7 +1987,7 @@ class AWSScanner {
 
     async scanOrganizations() {
         try {
-            const organizations = new AWS.Organizations();
+            const organizations = new AWS.Organizations({ region: 'us-east-1' });
             const accounts = [];
 
             const accountsData = await organizations.listAccounts().promise();
@@ -1897,7 +2042,7 @@ class AWSScanner {
                     stacks.push({
                         stackId: stack.StackId,
                         name: stack.Name,
-                        region: stack.Region,
+                        stackRegion: stack.Region,
                         region: region
                     });
                 }
@@ -2060,6 +2205,31 @@ class AWSScanner {
         if (this.accountInfo) {
             finalResults['account_info'] = this.accountInfo;
         }
+        
+        // Add region information to results
+        finalResults['region_info'] = {
+            totalRegions: this.activeRegions ? this.activeRegions.length : this.regions.length,
+            activeRegions: this.activeRegions || this.regions,
+            scannedRegions: this.regions,
+            discoveryStatus: this.activeRegions ? 'success' : 'fallback',
+            discoveryMethod: this.activeRegions ? 'EC2 describeRegions API' : 'Hardcoded fallback list'
+        };
+        
+        // Add out-of-scope services information
+        finalResults['out_of_scope_services'] = {
+            message: 'Services intentionally excluded from scanning scope',
+            services: {
+                s3: {
+                    reason: 'Data privacy and security considerations',
+                    description: 'S3 buckets may contain sensitive data requiring specialized security assessment',
+                    alternatives: [
+                        'AWS Config for S3 compliance',
+                        'Manual security reviews',
+                        'Dedicated S3 security scanners'
+                    ]
+                }
+            }
+        };
         
         // Add grouped unimplemented services if any exist
         if (this.unimplementedServices && this.unimplementedServices.length > 0) {
