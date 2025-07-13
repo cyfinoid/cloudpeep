@@ -21,8 +21,10 @@ class AWSScanner {
     async scan(credentials, selectedServices = null) {
         const scanId = Utils.SecurityUtils.generateRandomString(8);
         const scanStartTime = Date.now();
+        const scanStartDate = new Date().toISOString();
         
         console.log(`[${scanId}] 🏗️  Initializing AWS scanner...`);
+        console.log(`[${scanId}] 🕐 Scan started at: ${scanStartDate}`);
         
         try {
             console.log(`[${scanId}] 🔐 Validating AWS credentials...`);
@@ -88,7 +90,11 @@ class AWSScanner {
                 console.log(`[${scanId}] 📊 Progress: ${progress}% (${completedServices}/${services.length})`);
             }
             
-            const totalDuration = Date.now() - scanStartTime;
+            const scanEndTime = Date.now();
+            const scanEndDate = new Date().toISOString();
+            const totalDuration = scanEndTime - scanStartTime;
+            
+            console.log(`[${scanId}] 🕐 Scan ended at: ${scanEndDate}`);
             console.log(`[${scanId}] 🎉 AWS scan completed!`, {
                 duration: Utils.DataUtils.formatDuration(totalDuration),
                 totalServices: services.length,
@@ -98,10 +104,36 @@ class AWSScanner {
                 accountInfo: this.accountInfo
             });
             
+            // Store timing information
+            this.scanTiming = {
+                startTime: scanStartTime,
+                endTime: scanEndTime,
+                startDate: scanStartDate,
+                endDate: scanEndDate,
+                totalDuration: totalDuration,
+                formattedDuration: Utils.DataUtils.formatDuration(totalDuration)
+            };
+            
             return this.getFinalResults();
         } catch (error) {
-            const totalDuration = Date.now() - scanStartTime;
+            const scanEndTime = Date.now();
+            const scanEndDate = new Date().toISOString();
+            const totalDuration = scanEndTime - scanStartTime;
+            
+            console.log(`[${scanId}] 🕐 Scan ended at: ${scanEndDate}`);
             console.error(`[${scanId}] 💥 AWS scan failed after ${Utils.DataUtils.formatDuration(totalDuration)}:`, error);
+            
+            // Store timing information even for failed scans
+            this.scanTiming = {
+                startTime: scanStartTime,
+                endTime: scanEndTime,
+                startDate: scanStartDate,
+                endDate: scanEndDate,
+                totalDuration: totalDuration,
+                formattedDuration: Utils.DataUtils.formatDuration(totalDuration),
+                status: 'failed'
+            };
+            
             throw new Error(`AWS scan failed: ${error.message}`);
         }
     }
@@ -273,6 +305,44 @@ class AWSScanner {
             'us-west-2',  // Oregon - commonly available
             'eu-west-1'   // Ireland - commonly available
         ];
+    }
+
+    /**
+     * Categorize AWS errors for better reporting
+     * @param {Error} error - The AWS error
+     * @param {string} region - The region where the error occurred
+     * @returns {Object} Categorized error information
+     */
+    categorizeError(error, region) {
+        const errorInfo = {
+            region: region,
+            error: error.message,
+            code: error.code || 'Unknown',
+            type: 'unknown'
+        };
+
+        // Categorize common AWS errors
+        if (error.code === 'AccessDenied' || error.message.includes('Access Denied')) {
+            errorInfo.type = 'access_denied';
+            errorInfo.description = 'Insufficient permissions to access this service';
+        } else if (error.code === 'UnauthorizedOperation') {
+            errorInfo.type = 'unauthorized';
+            errorInfo.description = 'Unauthorized operation';
+        } else if (error.code === 'OptInRequired') {
+            errorInfo.type = 'opt_in_required';
+            errorInfo.description = 'Service requires opt-in for this region';
+        } else if (error.code === 'ServiceUnavailable') {
+            errorInfo.type = 'service_unavailable';
+            errorInfo.description = 'Service temporarily unavailable';
+        } else if (error.code === 'ThrottlingException') {
+            errorInfo.type = 'throttling';
+            errorInfo.description = 'API rate limit exceeded';
+        } else if (error.code === 'InvalidClientTokenId') {
+            errorInfo.type = 'invalid_credentials';
+            errorInfo.description = 'Invalid or expired credentials';
+        }
+
+        return errorInfo;
     }
 
     analyzeRegionResponse(regionsData) {
@@ -1275,6 +1345,13 @@ class AWSScanner {
     }
 
     async scanSageMaker() {
+        // Check if SageMaker is available in the AWS SDK
+        if (typeof AWS.SageMaker !== "function") {
+            console.warn("AWS.SageMaker is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('sagemaker');
+            return;
+        }
+        
         const notebooks = [];
         const models = [];
         
@@ -1337,6 +1414,13 @@ class AWSScanner {
     }
 
     async scanGlue() {
+        // Check if Glue is available in the AWS SDK
+        if (typeof AWS.Glue !== "function") {
+            console.warn("AWS.Glue is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('glue');
+            return;
+        }
+        
         const databases = [];
         const crawlers = [];
         
@@ -1374,6 +1458,13 @@ class AWSScanner {
     }
 
     async scanStepFunctions() {
+        // Check if StepFunctions is available in the AWS SDK
+        if (typeof AWS.StepFunctions !== "function") {
+            console.warn("AWS.StepFunctions is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('stepfunctions');
+            return;
+        }
+        
         const stateMachines = [];
         
         for (const region of this.regions) {
@@ -1550,6 +1641,13 @@ class AWSScanner {
     }
 
     async scanAppSync() {
+        // Check if AppSync is available in the AWS SDK
+        if (typeof AWS.AppSync !== "function") {
+            console.warn("AWS.AppSync is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('appsync');
+            return;
+        }
+        
         const apis = [];
         
         for (const region of this.regions) {
@@ -1635,6 +1733,13 @@ class AWSScanner {
     }
 
     async scanDataPipeline() {
+        // Check if DataPipeline is available in the AWS SDK
+        if (typeof AWS.DataPipeline !== "function") {
+            console.warn("AWS.DataPipeline is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('datapipeline');
+            return;
+        }
+        
         const pipelines = [];
         
         for (const region of this.regions) {
@@ -1658,6 +1763,13 @@ class AWSScanner {
     }
 
     async scanMediaConvert() {
+        // Check if MediaConvert is available in the AWS SDK
+        if (typeof AWS.MediaConvert !== "function") {
+            console.warn("AWS.MediaConvert is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('mediaconvert');
+            return;
+        }
+        
         const queues = [];
         
         for (const region of this.regions) {
@@ -1708,6 +1820,13 @@ class AWSScanner {
     }
 
     async scanWorkSpaces() {
+        // Check if WorkSpaces is available in the AWS SDK
+        if (typeof AWS.WorkSpaces !== "function") {
+            console.warn("AWS.WorkSpaces is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('workspaces');
+            return;
+        }
+        
         const workspaces = [];
         
         for (const region of this.regions) {
@@ -1733,6 +1852,13 @@ class AWSScanner {
     }
 
     async scanCloud9() {
+        // Check if Cloud9 is available in the AWS SDK
+        if (typeof AWS.Cloud9 !== "function") {
+            console.warn("AWS.Cloud9 is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('cloud9');
+            return;
+        }
+        
         const environments = [];
         
         for (const region of this.regions) {
@@ -1761,7 +1887,16 @@ class AWSScanner {
     }
 
     async scanLex() {
+        // Check if Lex is available in the AWS SDK
+        if (typeof AWS.LexModelBuildingService !== "function") {
+            console.warn("AWS.LexModelBuildingService is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('lex');
+            return;
+        }
+        
         const bots = [];
+        const accessDeniedRegions = [];
+        const errorRegions = [];
         
         for (const region of this.regions) {
             try {
@@ -1778,10 +1913,25 @@ class AWSScanner {
                 }
             } catch (error) {
                 console.error(`Error scanning Lex in ${region}:`, error);
+                
+                // Categorize errors using the utility method
+                const categorizedError = this.categorizeError(error, region);
+                
+                if (categorizedError.type === 'access_denied') {
+                    accessDeniedRegions.push(categorizedError);
+                } else {
+                    errorRegions.push(categorizedError);
+                }
             }
         }
 
-        this.addResult('lex', { bots });
+        this.addResult('lex', { 
+            bots,
+            accessDeniedRegions: accessDeniedRegions.length > 0 ? accessDeniedRegions : undefined,
+            errorRegions: errorRegions.length > 0 ? errorRegions : undefined,
+            accessIssues: accessDeniedRegions.length > 0,
+            totalErrors: accessDeniedRegions.length + errorRegions.length
+        });
     }
 
     async scanIoT() {
@@ -1820,6 +1970,13 @@ class AWSScanner {
     }
 
     async scanMediaLive() {
+        // Check if MediaLive is available in the AWS SDK
+        if (typeof AWS.MediaLive !== "function") {
+            console.warn("AWS.MediaLive is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('medialive');
+            return;
+        }
+        
         const channels = [];
         
         for (const region of this.regions) {
@@ -1844,6 +2001,13 @@ class AWSScanner {
     }
 
     async scanDataSync() {
+        // Check if DataSync is available in the AWS SDK
+        if (typeof AWS.DataSync !== "function") {
+            console.warn("AWS.DataSync is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('datasync');
+            return;
+        }
+        
         const tasks = [];
         
         for (const region of this.regions) {
@@ -1916,6 +2080,13 @@ class AWSScanner {
     }
 
     async scanPinpoint() {
+        // Check if Pinpoint is available in the AWS SDK
+        if (typeof AWS.Pinpoint !== "function") {
+            console.warn("AWS.Pinpoint is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('pinpoint');
+            return;
+        }
+        
         const applications = [];
         
         for (const region of this.regions) {
@@ -1939,6 +2110,13 @@ class AWSScanner {
     }
 
     async scanMediaPackage() {
+        // Check if MediaPackage is available in the AWS SDK
+        if (typeof AWS.MediaPackage !== "function") {
+            console.warn("AWS.MediaPackage is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('mediapackage');
+            return;
+        }
+        
         const channels = [];
         
         for (const region of this.regions) {
@@ -1962,6 +2140,13 @@ class AWSScanner {
     }
 
     async scanMQ() {
+        // Check if MQ is available in the AWS SDK
+        if (typeof AWS.MQ !== "function") {
+            console.warn("AWS.MQ is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('mq');
+            return;
+        }
+        
         const brokers = [];
         
         for (const region of this.regions) {
@@ -2008,6 +2193,13 @@ class AWSScanner {
     }
 
     async scanDetective() {
+        // Check if Detective is available in the AWS SDK
+        if (typeof AWS.Detective !== "function") {
+            console.warn("AWS.Detective is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('detective');
+            return;
+        }
+        
         const graphs = [];
         
         for (const region of this.regions) {
@@ -2031,6 +2223,13 @@ class AWSScanner {
     }
 
     async scanOpsWorks() {
+        // Check if OpsWorks is available in the AWS SDK
+        if (typeof AWS.OpsWorks !== "function") {
+            console.warn("AWS.OpsWorks is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('opsworks');
+            return;
+        }
+        
         const stacks = [];
         
         for (const region of this.regions) {
@@ -2079,6 +2278,13 @@ class AWSScanner {
     }
 
     async scanAppMesh() {
+        // Check if AppMesh is available in the AWS SDK
+        if (typeof AWS.AppMesh !== "function") {
+            console.warn("AWS.AppMesh is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('appmesh');
+            return;
+        }
+        
         const meshes = [];
         
         for (const region of this.regions) {
@@ -2103,6 +2309,13 @@ class AWSScanner {
     }
 
     async scanBackup() {
+        // Check if Backup is available in the AWS SDK
+        if (typeof AWS.Backup !== "function") {
+            console.warn("AWS.Backup is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('backup');
+            return;
+        }
+        
         const vaults = [];
         
         for (const region of this.regions) {
@@ -2127,6 +2340,13 @@ class AWSScanner {
     }
 
     async scanMediaStore() {
+        // Check if MediaStore is available in the AWS SDK
+        if (typeof AWS.MediaStore !== "function") {
+            console.warn("AWS.MediaStore is not available in the loaded AWS SDK.");
+            this.addUnimplementedService('mediastore');
+            return;
+        }
+        
         const containers = [];
         
         for (const region of this.regions) {
@@ -2199,14 +2419,27 @@ class AWSScanner {
      * @returns {Object} Final results
      */
     getFinalResults() {
-        const finalResults = { ...this.results };
+        const finalResults = {};
         
-        // Add account information to results
+        // 1. ACCOUNT INFORMATION (at the top)
         if (this.accountInfo) {
             finalResults['account_info'] = this.accountInfo;
         }
         
-        // Add region information to results
+        // 2. SCAN TIMING INFORMATION
+        if (this.scanTiming) {
+            finalResults['scan_timing'] = {
+                startTime: this.scanTiming.startTime,
+                endTime: this.scanTiming.endTime,
+                startDate: this.scanTiming.startDate,
+                endDate: this.scanTiming.endDate,
+                totalDuration: this.scanTiming.totalDuration,
+                formattedDuration: this.scanTiming.formattedDuration,
+                status: this.scanTiming.status || 'completed'
+            };
+        }
+        
+        // 3. REGION INFORMATION
         finalResults['region_info'] = {
             totalRegions: this.activeRegions ? this.activeRegions.length : this.regions.length,
             activeRegions: this.activeRegions || this.regions,
@@ -2215,7 +2448,7 @@ class AWSScanner {
             discoveryMethod: this.activeRegions ? 'EC2 describeRegions API' : 'Hardcoded fallback list'
         };
         
-        // Add out-of-scope services information
+        // 4. OUT-OF-SCOPE SERVICES INFORMATION
         finalResults['out_of_scope_services'] = {
             message: 'Services intentionally excluded from scanning scope',
             services: {
@@ -2231,7 +2464,10 @@ class AWSScanner {
             }
         };
         
-        // Add grouped unimplemented services if any exist
+        // 5. SCAN RESULTS (service-specific data)
+        Object.assign(finalResults, this.results);
+        
+        // 6. UNIMPLEMENTED SERVICES (at the bottom)
         if (this.unimplementedServices && this.unimplementedServices.length > 0) {
             finalResults['unimplemented_services'] = {
                 message: 'Services not implemented yet',
