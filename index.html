@@ -236,14 +236,14 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="policyModalTitle">Policy Document</h3>
-                <button class="modal-close" onclick="app.closePolicyModal()">&times;</button>
+                <button class="modal-close" data-action="close-policy-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <pre id="policyModalContent" class="policy-json"></pre>
             </div>
             <div class="modal-footer">
-                <button class="modal-btn" onclick="app.copyPolicyToClipboard()">Copy to Clipboard</button>
-                <button class="modal-btn secondary" onclick="app.closePolicyModal()">Close</button>
+                <button class="modal-btn" data-action="copy-policy-to-clipboard">Copy to Clipboard</button>
+                <button class="modal-btn secondary" data-action="close-policy-modal">Close</button>
             </div>
         </div>
     </div>

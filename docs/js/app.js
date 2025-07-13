@@ -271,61 +271,94 @@ class PeekInTheCloud {
 
     setupEventListeners() {
         // Provider selection
-        document.getElementById('provider-select').addEventListener('change', (e) => {
-            this.switchProvider(e.target.value);
-        });
+        const providerSelect = document.getElementById('provider-select');
+        if (providerSelect) {
+            providerSelect.addEventListener('change', (e) => this.switchProvider(e.target.value));
+        }
 
         // Form submissions
-        document.getElementById('aws-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAWSScan();
-        });
+        const awsForm = document.getElementById('aws-form');
+        if (awsForm) {
+            awsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAWSScan();
+            });
+        }
 
-        document.getElementById('azure-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAzureScan();
-        });
+        const azureForm = document.getElementById('azure-form');
+        if (azureForm) {
+            azureForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleAzureScan();
+            });
+        }
 
-        document.getElementById('gcp-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleGCPScan();
-        });
+        const gcpForm = document.getElementById('gcp-form');
+        if (gcpForm) {
+            gcpForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleGCPScan();
+            });
+        }
 
         // Export buttons
-        document.getElementById('export-json').addEventListener('click', () => {
-            this.exportResults('json');
-        });
+        const exportJsonBtn = document.getElementById('export-json');
+        if (exportJsonBtn) {
+            exportJsonBtn.addEventListener('click', () => this.exportResults('json'));
+        }
 
-        document.getElementById('export-csv').addEventListener('click', () => {
-            this.exportResults('csv');
-        });
+        const exportCsvBtn = document.getElementById('export-csv');
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', () => this.exportResults('csv'));
+        }
 
-        // Clear results
-        document.getElementById('clear-results').addEventListener('click', () => {
-            this.clearResults();
-        });
+        const clearResultsBtn = document.getElementById('clear-results');
+        if (clearResultsBtn) {
+            clearResultsBtn.addEventListener('click', () => this.clearResults());
+        }
 
         // Storage buttons
-        document.getElementById('load-stored-results').addEventListener('click', () => {
-            this.showStoredResultsModal();
+        const loadStoredResultsBtn = document.getElementById('load-stored-results');
+        if (loadStoredResultsBtn) {
+            loadStoredResultsBtn.addEventListener('click', () => this.showStoredResultsModal());
+        }
+
+        const clearAllStoredBtn = document.getElementById('clear-all-stored');
+        if (clearAllStoredBtn) {
+            clearAllStoredBtn.addEventListener('click', () => this.clearAllStoredResults());
+        }
+
+        // Policy modal event listeners
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="close-policy-modal"]')) {
+                this.closePolicyModal();
+            } else if (e.target.matches('[data-action="copy-policy-to-clipboard"]')) {
+                this.copyPolicyToClipboard();
+            } else if (e.target.matches('[data-action="show-policy-document"]')) {
+                const policyName = e.target.getAttribute('data-policy-name');
+                const policyDocument = e.target.getAttribute('data-policy-document');
+                this.showPolicyDocument(policyName, policyDocument);
+            }
         });
 
-        document.getElementById('clear-all-stored').addEventListener('click', () => {
-            this.clearAllStoredResults();
-        });
+        // Honeytoken modal event listeners
+        const cancelHoneytokenBtn = document.getElementById('cancelHoneytokenScan');
+        if (cancelHoneytokenBtn) {
+            cancelHoneytokenBtn.addEventListener('click', () => {
+                document.getElementById('honeytokenModal').classList.add('hidden');
+            });
+        }
 
-        // Debug panel
-        document.getElementById('toggle-debug').addEventListener('click', () => {
-            this.toggleDebugPanel();
-        });
-
-        document.getElementById('clear-debug').addEventListener('click', () => {
-            this.clearDebugLog();
-        });
-
-        document.getElementById('copy-debug').addEventListener('click', () => {
-            this.copyDebugLog();
-        });
+        const proceedHoneytokenBtn = document.getElementById('proceedHoneytokenScan');
+        if (proceedHoneytokenBtn) {
+            proceedHoneytokenBtn.addEventListener('click', () => {
+                document.getElementById('honeytokenModal').classList.add('hidden');
+                if (this.pendingHoneytokenScan) {
+                    this.pendingHoneytokenScan();
+                    this.pendingHoneytokenScan = null;
+                }
+            });
+        }
     }
 
     switchProvider(provider) {
@@ -1442,9 +1475,26 @@ class PeekInTheCloud {
         const headerRow = headers.map(h => `<th>${h}</th>`).join('');
         const dataRows = policies.map((policy, index) => {
             const hasDocument = policy.document !== null && policy.document !== undefined;
-            const readButton = hasDocument ? 
-                `<button class="policy-read-btn" onclick="app.showPolicyDocument('${policy.policyName}', '${this.escapeHtml(JSON.stringify(policy.document))}')">Read Policy</button>` : 
-                '<span class="no-document">No document available</span>';
+            
+            let readButton;
+            if (hasDocument) {
+                // Handle different document formats
+                let documentString;
+                if (typeof policy.document === 'string') {
+                    documentString = policy.document;
+                } else if (typeof policy.document === 'object') {
+                    documentString = JSON.stringify(policy.document);
+                } else {
+                    documentString = String(policy.document);
+                }
+                
+                // Escape the document for HTML attributes
+                const escapedDocument = this.escapeHtml(documentString);
+                
+                readButton = `<button class="policy-read-btn" data-action="show-policy-document" data-policy-name="${this.escapeHtml(policy.policyName)}" data-policy-document="${escapedDocument}">Read Policy</button>`;
+            } else {
+                readButton = '<span class="no-document">No document available</span>';
+            }
             
             return `<tr>
                 <td>${policy.policyName || ''}</td>
@@ -1464,11 +1514,36 @@ class PeekInTheCloud {
 
     showPolicyDocument(policyName, encodedDocument) {
         try {
-            // URL decode the document
-            const decodedDocument = decodeURIComponent(encodedDocument);
+            console.log('showPolicyDocument called with:', { policyName, encodedDocument });
             
-            // Parse and beautify the JSON
-            const policyJson = JSON.parse(decodedDocument);
+            // Check if the document is empty or null
+            if (!encodedDocument || encodedDocument === 'null' || encodedDocument === 'undefined' || encodedDocument.trim() === '') {
+                console.warn('Policy document is empty or null');
+                this.showNotification('No policy document available for this policy', 'warning');
+                return;
+            }
+
+            let policyJson;
+            
+            // Try to parse as JSON first (in case it's already a JSON object)
+            try {
+                policyJson = JSON.parse(encodedDocument);
+            } catch (parseError) {
+                console.log('Failed to parse as JSON, trying URL decode first');
+                
+                // Try URL decoding first, then parsing
+                try {
+                    const decodedDocument = decodeURIComponent(encodedDocument);
+                    policyJson = JSON.parse(decodedDocument);
+                } catch (decodeError) {
+                    console.error('Failed to decode and parse policy document:', decodeError);
+                    console.log('Raw document:', encodedDocument);
+                    this.showNotification('Invalid policy document format', 'error');
+                    return;
+                }
+            }
+            
+            // Beautify the JSON
             const beautifiedJson = JSON.stringify(policyJson, null, 2);
             
             // Update modal content
@@ -1477,8 +1552,12 @@ class PeekInTheCloud {
             
             // Show modal
             document.getElementById('policyModal').classList.remove('hidden');
+            
+            console.log('Policy document displayed successfully');
         } catch (error) {
             console.error('Error parsing policy document:', error);
+            console.log('Policy name:', policyName);
+            console.log('Raw document:', encodedDocument);
             this.showNotification('Error parsing policy document', 'error');
         }
     }
