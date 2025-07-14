@@ -1,6 +1,7 @@
 /**
  * AWS Cloud Scanner - Comprehensive Service Enumeration
- * Supports 50+ AWS services with multi-region scanning
+ * Enhanced with aws-inventory coverage and parallel processing
+ * Supports 100+ AWS services with multi-region scanning
  */
 
 class AWSScanner {
@@ -16,6 +17,301 @@ class AWSScanner {
         this.currentRegion = 'us-east-1';
         this.accountInfo = null;
         this.activeRegions = null;
+        this.globalServices = this.getGlobalServices();
+        this.serviceDefinitions = this.getServiceDefinitions();
+    }
+
+    /**
+     * Get global services that don't need regional scanning
+     */
+    getGlobalServices() {
+        return {
+            'cloudfront': { region: 'global', skip_regions: [] },
+            'route53': { region: 'global', skip_regions: [] },
+            'route53domains': { region: 'us-east-1', skip_regions: [] },
+            'iam': { region: 'global', skip_regions: [] },
+            'organizations': { region: 'global', skip_regions: [] },
+            'sts': { region: 'global', skip_regions: [] },
+            'cur': { region: 'us-east-1', skip_regions: [] },
+            'devicefarm': { region: 'us-west-2', skip_regions: [] }
+        };
+    }
+
+    /**
+     * Enhanced service definitions with global/regional marking
+     */
+    getServiceDefinitions() {
+        return {
+            // Certificate Management
+            'acm': { 
+                name: 'ACM Certificates', 
+                category: 'Security',
+                global: true,
+                apis: ['listCertificates']
+            },
+            
+            // Auto Scaling
+            'applicationautoscaling': {
+                name: 'Application Auto Scaling',
+                category: 'Compute',
+                global: false,
+                apis: ['describeScalableTargets'],
+                namespaces: ['ecs', 'elasticmapreduce', 'ec2', 'appstream', 'dynamodb', 'rds']
+            },
+            'autoscaling': {
+                name: 'EC2 Auto Scaling',
+                category: 'Compute',
+                global: false,
+                apis: ['describeAutoScalingGroups', 'describeLaunchConfigurations']
+            },
+            
+            // CloudFront
+            'cloudfront': {
+                name: 'CloudFront Distributions',
+                category: 'Networking',
+                global: true,
+                apis: ['listDistributions', 'listStreamingDistributions', 'listCloudFrontOriginAccessIdentities']
+            },
+            
+            // CloudWatch
+            'cloudwatch': {
+                name: 'CloudWatch',
+                category: 'Analytics',
+                global: false,
+                apis: ['describeAlarms', 'listDashboards', 'listMetrics']
+            },
+            'cloudwatchevents': {
+                name: 'CloudWatch Events',
+                category: 'Analytics',
+                global: false,
+                apis: ['listRules']
+            },
+            'cloudwatchlogs': {
+                name: 'CloudWatch Logs',
+                category: 'Analytics',
+                global: false,
+                apis: ['describeLogGroups', 'describeExportTasks', 'describeDestinations', 'describeMetricFilters', 'describeResourcePolicies']
+            },
+            
+            // Code Services
+            'codecommit': {
+                name: 'CodeCommit Repositories',
+                category: 'Development',
+                global: false,
+                skip_regions: ['eu-west-3'],
+                apis: ['listRepositories']
+            },
+            'codedeploy': {
+                name: 'CodeDeploy',
+                category: 'Development',
+                global: false,
+                apis: ['listApplications', 'listGitHubAccountTokenNames', 'listOnPremisesInstances']
+            },
+            
+            // Cognito
+            'cognitoidentity': {
+                name: 'Cognito Identity Pools',
+                category: 'Security',
+                global: false,
+                skip_regions: ['ca-central-1', 'eu-west-3', 'sa-east-1', 'us-west-1', 'us-east-2'],
+                apis: ['listIdentityPools']
+            },
+            'cognitoidentityserviceprovider': {
+                name: 'Cognito User Pools',
+                category: 'Security',
+                global: false,
+                skip_regions: ['ca-central-1', 'eu-west-3', 'sa-east-1', 'us-west-1', 'us-east-2'],
+                apis: ['listUserPools']
+            },
+            
+            // Config Service
+            'configservice': {
+                name: 'Config Service',
+                category: 'Management',
+                global: false,
+                apis: ['describeConfigRules', 'describeConfigRuleEvaluationStatus', 'describeConfigurationRecorders', 'describeConfigurationRecorderStatus', 'describeDeliveryChannels', 'describeDeliveryChannelStatus']
+            },
+            
+            // Cost & Usage
+            'cur': {
+                name: 'Cost and Usage Reports',
+                category: 'Management',
+                global: false,
+                region: 'us-east-1',
+                apis: ['describeReportDefinitions']
+            },
+            
+            // Device Farm
+            'devicefarm': {
+                name: 'Device Farm',
+                category: 'Development',
+                global: false,
+                region: 'us-west-2',
+                apis: ['listProjects']
+            },
+            
+            // Direct Connect
+            'directconnect': {
+                name: 'Direct Connect',
+                category: 'Networking',
+                global: false,
+                apis: ['describeConnections', 'describeLags', 'describeVirtualGateways', 'describeVirtualInterfaces']
+            },
+            
+            // DynamoDB
+            'dynamodb': {
+                name: 'DynamoDB',
+                category: 'Database',
+                global: false,
+                skip_regions: ['ap-southeast-2', 'ap-southeast-1', 'ap-south-1', 'ap-northeast-2', 'ap-northeast-1', 'eu-central-1', 'eu-west-3', 'eu-west-2', 'ca-central-1', 'us-west-1', 'sa-east-1'],
+                apis: ['listBackups', 'listGlobalTables', 'listTables']
+            },
+            'dynamodbstreams': {
+                name: 'DynamoDB Streams',
+                category: 'Database',
+                global: false,
+                apis: ['listStreams']
+            },
+            
+            // Inspector
+            'inspector': {
+                name: 'Inspector',
+                category: 'Security',
+                global: false,
+                skip_regions: ['ap-southeast-1', 'ca-central-1', 'eu-west-2', 'eu-west-3', 'sa-east-1'],
+                apis: ['listRulesPackages', 'listAssessmentTargets']
+            },
+            
+            // IoT
+            'iot': {
+                name: 'IoT',
+                category: 'AI/ML',
+                global: false,
+                skip_regions: ['ap-south-1', 'ca-central-1', 'eu-west-3', 'sa-east-1', 'us-west-1'],
+                apis: ['listAuthorizers', 'listCACertificates', 'listCertificates', 'listIndices', 'listJobs', 'listOutgoingCertificates', 'listPolicies', 'listRoleAliases', 'listThingGroups', 'listThingRegistrationTasks', 'listThings', 'listThingTypes', 'listTopicRules']
+            },
+            
+            // Kinesis
+            'kinesis': {
+                name: 'Kinesis',
+                category: 'Analytics',
+                global: false,
+                apis: ['describeLimits', 'listStreams']
+            },
+            
+            // KMS
+            'kms': {
+                name: 'KMS',
+                category: 'Security',
+                global: false,
+                apis: ['listAliases', 'listKeys']
+            },
+            
+            // Lambda
+            'lambda': {
+                name: 'Lambda',
+                category: 'Compute',
+                global: false,
+                apis: ['getAccountSettings', 'listEventSourceMappings', 'listFunctions']
+            },
+            
+            // Machine Learning
+            'machinelearning': {
+                name: 'Machine Learning',
+                category: 'AI/ML',
+                global: false,
+                skip_regions: ['ap-northeast-1', 'ap-northeast-2', 'ap-south-1', 'ap-southeast-1', 'ap-southeast-2', 'ca-central-1', 'eu-central-1', 'eu-west-2', 'eu-west-3', 'sa-east-1', 'us-east-2', 'us-west-1', 'us-west-2'],
+                apis: ['describeBatchPredictions', 'describeEvaluations', 'describeDataSources', 'describeMLModels']
+            },
+            
+            // OpsWorks
+            'opsworks': {
+                name: 'OpsWorks',
+                category: 'Management',
+                global: false,
+                apis: ['describeStacks']
+            },
+            
+            // Polly
+            'polly': {
+                name: 'Polly',
+                category: 'AI/ML',
+                global: false,
+                apis: ['listLexicons']
+            },
+            
+            // RDS
+            'rds': {
+                name: 'RDS',
+                category: 'Database',
+                global: false,
+                apis: ['describeAccountAttributes', 'describeCertificates', 'describeDBClusterParameterGroups', 'describeDBClusters', 'describeDBInstances', 'describeDBParameterGroups', 'describeDBSecurityGroups', 'describeDBSnapshots', 'describeDBSubnetGroups', 'describeEventCategories', 'describeEventSubscriptions', 'describeOptionGroups', 'describeReservedDBInstances', 'describeSourceRegions']
+            },
+            
+            // Redshift
+            'redshift': {
+                name: 'Redshift',
+                category: 'Database',
+                global: false,
+                apis: ['describeClusterParameterGroups', 'describeClusters', 'describeClusterSecurityGroups', 'describeClusterSnapshots', 'describeClusterSubnetGroups', 'describeClusterVersions', 'describeEventCategories', 'describeEventSubscriptions', 'describeHsmClientCertificates', 'describeHsmConfigurations', 'describeReservedNodes', 'describeSnapshotCopyGrants', 'describeTags']
+            },
+            
+            // Rekognition
+            'rekognition': {
+                name: 'Rekognition',
+                category: 'AI/ML',
+                global: false,
+                apis: ['listCollections']
+            },
+            
+            // Route53
+            'route53': {
+                name: 'Route53',
+                category: 'Networking',
+                global: true,
+                apis: ['listHealthChecks', 'listHostedZones', 'listQueryLoggingConfigs', 'listReusableDelegationSets', 'listTrafficPolicies', 'listTrafficPolicyInstances']
+            },
+            'route53domains': {
+                name: 'Route53 Domains',
+                category: 'Networking',
+                global: false,
+                region: 'us-east-1',
+                apis: ['listDomains', 'listOperations']
+            },
+            
+            // SES
+            'ses': {
+                name: 'Simple Email Service',
+                category: 'Messaging',
+                global: false,
+                skip_regions: ['eu-west-2', 'eu-west-3', 'ap-southeast-2', 'us-west-1', 'ap-south-1', 'ap-southeast-1', 'us-east-2', 'eu-central-1', 'ap-northeast-1', 'ca-central-1', 'ap-northeast-2', 'sa-east-1'],
+                apis: ['describeActiveReceiptRuleSet', 'listConfigurationSets', 'listCustomVerificationEmailTemplates', 'listIdentities', 'listReceiptFilters', 'listReceiptRuleSets', 'listTemplates', 'listVerifiedEmailAddresses']
+            },
+            
+            // SSM
+            'ssm': {
+                name: 'Systems Manager',
+                category: 'Management',
+                global: false,
+                apis: ['describeActivations', 'describeAutomationExecutions', 'describeAvailablePatches', 'describeMaintenanceWindows', 'describeParameters', 'describePatchBaselines', 'describePatchGroups', 'listAssociations', 'listCommandInvocations', 'listCommands', 'listDocuments', 'listResourceDataSync']
+            },
+            
+            // Storage Gateway
+            'storagegateway': {
+                name: 'Storage Gateway',
+                category: 'Storage',
+                global: false,
+                apis: ['listFileShares', 'listGateways', 'listTapes']
+            },
+            
+            // WAF
+            'waf': {
+                name: 'WAF',
+                category: 'Security',
+                global: false,
+                apis: ['listByteMatchSets', 'listGeoMatchSets', 'listIPSets', 'listRateBasedRules', 'listRegexMatchSets', 'listRegexPatternSets', 'listRuleGroups', 'listRules', 'listSizeConstraintSets', 'listSqlInjectionMatchSets', 'listSubscribedRuleGroups', 'listWebACLs', 'listXssMatchSets']
+            }
+        };
     }
 
     async scan(credentials, selectedServices = null) {
@@ -23,7 +319,7 @@ class AWSScanner {
         const scanStartTime = Date.now();
         const scanStartDate = new Date().toISOString();
         
-        console.log(`[${scanId}] 🏗️  Initializing AWS scanner...`);
+        console.log(`[${scanId}] 🏗️  Initializing enhanced AWS scanner...`);
         console.log(`[${scanId}] 🕐 Scan started at: ${scanStartDate}`);
         
         try {
@@ -55,52 +351,18 @@ class AWSScanner {
                 selectedServices: selectedServices ? selectedServices.length : 'ALL'
             });
             
-            // Scan each service
-            let completedServices = 0;
-            let successfulServices = 0;
-            let failedServices = 0;
-            
-            console.log(`[${scanId}] 🔍 Starting service enumeration...`);
-            
-            for (const service of services) {
-                const serviceStartTime = Date.now();
-                completedServices++;
-                
-                console.log(`[${scanId}] 🔍 [${completedServices}/${services.length}] Scanning ${service}...`);
-                
-                // Update progress for current service
-                if (this.onProgressUpdate) {
-                    this.onProgressUpdate(service, `Scanning ${service}...`);
-                }
-                
-                try {
-                    await this.scanService(service);
-                    const serviceDuration = Date.now() - serviceStartTime;
-                    successfulServices++;
-                    console.log(`[${scanId}] ✅ [${completedServices}/${services.length}] ${service} completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
-                } catch (error) {
-                    const serviceDuration = Date.now() - serviceStartTime;
-                    failedServices++;
-                    console.error(`[${scanId}] ❌ [${completedServices}/${services.length}] ${service} failed after ${Utils.DataUtils.formatDuration(serviceDuration)}:`, error);
-                    this.addResult(service, { error: error.message });
-                }
-                
-                // Progress update
-                const progress = Math.round((completedServices / services.length) * 100);
-                console.log(`[${scanId}] 📊 Progress: ${progress}% (${completedServices}/${services.length})`);
-            }
+            // Enhanced parallel scanning
+            console.log(`[${scanId}] 🚀 Starting enhanced parallel service enumeration...`);
+            await this.scanServicesParallel(services);
             
             const scanEndTime = Date.now();
             const scanEndDate = new Date().toISOString();
             const totalDuration = scanEndTime - scanStartTime;
             
             console.log(`[${scanId}] 🕐 Scan ended at: ${scanEndDate}`);
-            console.log(`[${scanId}] 🎉 AWS scan completed!`, {
+            console.log(`[${scanId}] 🎉 Enhanced AWS scan completed!`, {
                 duration: Utils.DataUtils.formatDuration(totalDuration),
                 totalServices: services.length,
-                successfulServices: successfulServices,
-                failedServices: failedServices,
-                successRate: Math.round((successfulServices / services.length) * 100) + '%',
                 accountInfo: this.accountInfo
             });
             
@@ -121,7 +383,7 @@ class AWSScanner {
             const totalDuration = scanEndTime - scanStartTime;
             
             console.log(`[${scanId}] 🕐 Scan ended at: ${scanEndDate}`);
-            console.error(`[${scanId}] 💥 AWS scan failed after ${Utils.DataUtils.formatDuration(totalDuration)}:`, error);
+            console.error(`[${scanId}] 💥 Enhanced AWS scan failed after ${Utils.DataUtils.formatDuration(totalDuration)}:`, error);
             
             // Store timing information even for failed scans
             this.scanTiming = {
@@ -134,8 +396,217 @@ class AWSScanner {
                 status: 'failed'
             };
             
-            throw new Error(`AWS scan failed: ${error.message}`);
+            throw new Error(`Enhanced AWS scan failed: ${error.message}`);
         }
+    }
+
+    /**
+     * Enhanced parallel scanning with global/regional optimization
+     */
+    async scanServicesParallel(services) {
+        const scanPromises = [];
+        let completedServices = 0;
+        let successfulServices = 0;
+        let failedServices = 0;
+        
+        for (const service of services) {
+            const serviceDefinition = this.serviceDefinitions[service];
+            if (!serviceDefinition) {
+                console.warn(`Service definition not found for: ${service}`);
+                continue;
+            }
+            
+            // Determine regions for this service
+            const regionsToScan = this.getRegionsForService(service, serviceDefinition);
+            
+            // Create parallel scan promise for this service
+            const servicePromise = this.scanServiceParallel(service, serviceDefinition, regionsToScan)
+                .then(() => {
+                    completedServices++;
+                    successfulServices++;
+                    console.log(`✅ [${completedServices}/${services.length}] ${service} completed successfully`);
+                })
+                .catch((error) => {
+                    completedServices++;
+                    failedServices++;
+                    console.error(`❌ [${completedServices}/${services.length}] ${service} failed:`, error.message);
+                    this.addResult(service, { error: error.message });
+                });
+            
+            scanPromises.push(servicePromise);
+        }
+        
+        // Execute all service scans in parallel
+        console.log(`🚀 Starting parallel execution of ${scanPromises.length} services...`);
+        await Promise.allSettled(scanPromises);
+        
+        console.log(`📊 Parallel scan completed: ${successfulServices} successful, ${failedServices} failed`);
+    }
+
+    /**
+     * Get regions to scan for a specific service
+     */
+    getRegionsForService(service, serviceDefinition) {
+        if (serviceDefinition.global) {
+            // Global service - only scan in global region
+            return ['global'];
+        }
+        
+        if (serviceDefinition.region) {
+            // Service restricted to specific region
+            return [serviceDefinition.region];
+        }
+        
+        // Regional service - scan all active regions except skipped ones
+        const skipRegions = serviceDefinition.skip_regions || [];
+        return this.regions.filter(region => !skipRegions.includes(region));
+    }
+
+    /**
+     * Scan a single service in parallel across regions
+     */
+    async scanServiceParallel(service, serviceDefinition, regionsToScan) {
+        const scanId = Utils.SecurityUtils.generateRandomString(6);
+        const serviceStartTime = Date.now();
+        
+        console.log(`[${scanId}] 🔍 Starting parallel scan for ${service} across ${regionsToScan.length} regions...`);
+        
+        // Update progress for current service
+        if (this.onProgressUpdate) {
+            this.onProgressUpdate(service, `Scanning ${service} in parallel...`);
+        }
+        
+        const regionPromises = [];
+        const serviceResults = {
+            regions: {},
+            global: serviceDefinition.global || false,
+            totalResources: 0,
+            errors: []
+        };
+        
+        for (const region of regionsToScan) {
+            const regionPromise = this.scanServiceInRegion(service, serviceDefinition, region)
+                .then((regionResult) => {
+                    serviceResults.regions[region] = regionResult;
+                    serviceResults.totalResources += regionResult.totalResources || 0;
+                })
+                .catch((error) => {
+                    serviceResults.errors.push({
+                        region: region,
+                        error: error.message
+                    });
+                    serviceResults.regions[region] = { error: error.message };
+                });
+            
+            regionPromises.push(regionPromise);
+        }
+        
+        // Execute all region scans in parallel
+        await Promise.allSettled(regionPromises);
+        
+        const serviceDuration = Date.now() - serviceStartTime;
+        console.log(`[${scanId}] ✅ ${service} completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
+        
+        this.addResult(service, serviceResults);
+    }
+
+    /**
+     * Scan a service in a specific region
+     */
+    async scanServiceInRegion(service, serviceDefinition, region) {
+        const regionStartTime = Date.now();
+        
+        // Update detailed progress for region
+        if (this.onDetailedProgressUpdate) {
+            this.onDetailedProgressUpdate(service, 'region', `Scanning ${region}`, '1/1');
+        }
+        
+        const regionResult = {
+            region: region,
+            resources: {},
+            totalResources: 0,
+            scanTime: 0
+        };
+        
+        try {
+            // Get service scanner for this service
+            const scanner = this.getServiceScanner(service);
+            if (scanner) {
+                // Temporarily set current region for the scanner
+                const originalRegion = this.currentRegion;
+                this.currentRegion = region;
+                
+                // Execute the scanner
+                await scanner.call(this);
+                
+                // Restore original region
+                this.currentRegion = originalRegion;
+            } else {
+                // Use generic API scanning for services without specific scanners
+                await this.scanServiceGeneric(service, serviceDefinition, region, regionResult);
+            }
+            
+            regionResult.scanTime = Date.now() - regionStartTime;
+            console.log(`✅ ${service} in ${region}: ${regionResult.totalResources} resources in ${Utils.DataUtils.formatDuration(regionResult.scanTime)}`);
+            
+        } catch (error) {
+            console.error(`❌ ${service} in ${region}: ${error.message}`);
+            regionResult.error = error.message;
+        }
+        
+        return regionResult;
+    }
+
+    /**
+     * Generic service scanning using AWS SDK
+     */
+    async scanServiceGeneric(service, serviceDefinition, region, regionResult) {
+        const apis = serviceDefinition.apis || [];
+        
+        for (const api of apis) {
+            try {
+                // Create AWS service client
+                const awsService = new AWS[service.toUpperCase()]({ region: region });
+                
+                // Call the API
+                const response = await awsService[api]().promise();
+                
+                // Extract resources from response
+                const resources = this.extractResourcesFromResponse(response, api);
+                
+                regionResult.resources[api] = resources;
+                regionResult.totalResources += resources.length;
+                
+            } catch (error) {
+                console.error(`Error calling ${service}.${api} in ${region}:`, error.message);
+                regionResult.resources[api] = { error: error.message };
+            }
+        }
+    }
+
+    /**
+     * Extract resources from AWS API response
+     */
+    extractResourcesFromResponse(response, api) {
+        // Common response patterns
+        const resourceKeys = [
+            'Items', 'Instances', 'Functions', 'Tables', 'Clusters',
+            'Groups', 'Users', 'Roles', 'Policies', 'Buckets',
+            'Distributions', 'Alarms', 'Rules', 'Topics', 'Queues'
+        ];
+        
+        for (const key of resourceKeys) {
+            if (response[key]) {
+                return response[key];
+            }
+        }
+        
+        // If no common pattern found, return the response as-is
+        return response;
+    }
+
+    getAvailableServices() {
+        return Object.keys(this.serviceDefinitions);
     }
 
     validateCredentials(credentials) {
@@ -388,110 +859,6 @@ class AWSScanner {
         }
     }
 
-    getAvailableServices() {
-        return [
-            'ec2', 'rds', 'lambda', 'cloudfront', 'dynamodb', 'iam',
-            'sns', 'sqs', 'ecr', 'elasticbeanstalk', 'route53', 'cloudwatch',
-            'codepipeline', 'sagemaker', 'secretsmanager', 'glue', 'stepfunctions',
-            'eks', 'cloudtrail', 'kinesis', 'redshift', 'elasticache', 'ecs',
-            'apigateway', 'cloudformation', 'appsync', 'ssm', 'elastictranscoder',
-            'datapipeline', 'mediaconvert', 'storagegateway', 'workspaces',
-            'cloud9', 'lex', 'iot', 'medialive', 'datasync', 'emr', 'athena',
-            'pinpoint', 'efs', 'mediapackage', 'mq', 'organizations', 'detective',
-            'opsworks', 'codecommit', 'appmesh', 'backup', 'mediastore'
-        ];
-    }
-
-    async scanService(service) {
-        const scanner = this.getServiceScanner(service);
-        if (scanner) {
-            await scanner.call(this);
-        }
-    }
-
-    getServiceScanner(service) {
-        const scanners = {
-            // Compute Services
-            ec2: this.scanEC2,
-            lambda: this.scanLambda,
-            ecs: this.scanECS,
-            eks: this.scanEKS,
-            elasticbeanstalk: this.scanElasticBeanstalk,
-            emr: this.scanEMR,
-            
-            // Storage Services
-            efs: this.scanEFS,
-            storagegateway: this.scanStorageGateway,
-            
-            // Database Services
-            rds: this.scanRDS,
-            dynamodb: this.scanDynamoDB,
-            redshift: this.scanRedshift,
-            elasticache: this.scanElastiCache,
-            athena: this.scanAthena,
-            
-            // Networking Services
-            route53: this.scanRoute53,
-            apigateway: this.scanAPIGateway,
-            cloudfront: this.scanCloudFront,
-            
-            // Security Services
-            iam: this.scanIAM,
-            cloudtrail: this.scanCloudTrail,
-            secretsmanager: this.scanSecretsManager,
-            detective: this.scanDetective,
-            
-            // Analytics Services
-            kinesis: this.scanKinesis,
-            glue: this.scanGlue,
-            stepfunctions: this.scanStepFunctions,
-            cloudwatch: this.scanCloudWatch,
-            
-            // Media Services
-            mediaconvert: this.scanMediaConvert,
-            medialive: this.scanMediaLive,
-            mediapackage: this.scanMediaPackage,
-            elastictranscoder: this.scanElasticTranscoder,
-            
-            // AI/ML Services
-            sagemaker: this.scanSageMaker,
-            lex: this.scanLex,
-            iot: this.scanIoT,
-            
-            // Development Services
-            codepipeline: this.scanCodePipeline,
-            codecommit: this.scanCodeCommit,
-            cloud9: this.scanCloud9,
-            ssm: this.scanSSM,
-            
-            // Management Services
-            cloudformation: this.scanCloudFormation,
-            organizations: this.scanOrganizations,
-            backup: this.scanBackup,
-            
-            // Messaging Services
-            sns: this.scanSNS,
-            sqs: this.scanSQS,
-            mq: this.scanMQ,
-            
-            // Container Services
-            ecr: this.scanECR,
-            
-            // Additional Services
-            appsync: this.scanAppSync,
-            datapipeline: this.scanDataPipeline,
-            workspaces: this.scanWorkSpaces,
-            datasync: this.scanDataSync,
-            pinpoint: this.scanPinpoint,
-            opsworks: this.scanOpsWorks,
-            appmesh: this.scanAppMesh,
-            mediastore: this.scanMediaStore
-        };
-        
-        return scanners[service];
-    }
-
-    // Compute Services
     async scanEC2() {
         const scanId = Utils.SecurityUtils.generateRandomString(6);
         const serviceStartTime = Date.now();
@@ -2481,6 +2848,1154 @@ class AWSScanner {
         }
         
         return finalResults;
+    }
+
+    getServiceScanner(service) {
+        const scanners = {
+            // Original services with enhanced scanners
+            ec2: this.scanEC2,
+            lambda: this.scanLambda,
+            ecs: this.scanECS,
+            eks: this.scanEKS,
+            elasticbeanstalk: this.scanElasticBeanstalk,
+            emr: this.scanEMR,
+            
+            // Storage Services
+            efs: this.scanEFS,
+            storagegateway: this.scanStorageGateway,
+            
+            // Database Services
+            rds: this.scanRDS,
+            dynamodb: this.scanDynamoDB,
+            redshift: this.scanRedshift,
+            elasticache: this.scanElastiCache,
+            athena: this.scanAthena,
+            
+            // Networking Services
+            route53: this.scanRoute53,
+            apigateway: this.scanAPIGateway,
+            cloudfront: this.scanCloudFront,
+            
+            // Security Services
+            iam: this.scanIAM,
+            cloudtrail: this.scanCloudTrail,
+            secretsmanager: this.scanSecretsManager,
+            detective: this.scanDetective,
+            
+            // Analytics Services
+            kinesis: this.scanKinesis,
+            glue: this.scanGlue,
+            stepfunctions: this.scanStepFunctions,
+            cloudwatch: this.scanCloudWatch,
+            
+            // Media Services
+            mediaconvert: this.scanMediaConvert,
+            medialive: this.scanMediaLive,
+            mediapackage: this.scanMediaPackage,
+            elastictranscoder: this.scanElasticTranscoder,
+            
+            // AI/ML Services
+            sagemaker: this.scanSageMaker,
+            lex: this.scanLex,
+            iot: this.scanIoT,
+            
+            // Development Services
+            codepipeline: this.scanCodePipeline,
+            codecommit: this.scanCodeCommit,
+            cloud9: this.scanCloud9,
+            ssm: this.scanSSM,
+            
+            // Management Services
+            cloudformation: this.scanCloudFormation,
+            organizations: this.scanOrganizations,
+            backup: this.scanBackup,
+            
+            // Messaging Services
+            sns: this.scanSNS,
+            sqs: this.scanSQS,
+            mq: this.scanMQ,
+            
+            // Container Services
+            ecr: this.scanECR,
+            
+            // Additional Services
+            appsync: this.scanAppSync,
+            datapipeline: this.scanDataPipeline,
+            workspaces: this.scanWorkSpaces,
+            datasync: this.scanDataSync,
+            pinpoint: this.scanPinpoint,
+            opsworks: this.scanOpsWorks,
+            appmesh: this.scanAppMesh,
+            mediastore: this.scanMediaStore,
+            
+            // New services from aws-inventory
+            acm: this.scanACM,
+            applicationautoscaling: this.scanApplicationAutoScaling,
+            autoscaling: this.scanAutoScaling,
+            cloudwatchevents: this.scanCloudWatchEvents,
+            cloudwatchlogs: this.scanCloudWatchLogs,
+            codedeploy: this.scanCodeDeploy,
+            cognitoidentity: this.scanCognitoIdentity,
+            cognitoidentityserviceprovider: this.scanCognitoIdentityServiceProvider,
+            configservice: this.scanConfigService,
+            cur: this.scanCUR,
+            devicefarm: this.scanDeviceFarm,
+            directconnect: this.scanDirectConnect,
+            dynamodbstreams: this.scanDynamoDBStreams,
+            inspector: this.scanInspector,
+            kms: this.scanKMS,
+            machinelearning: this.scanMachineLearning,
+            opsworks: this.scanOpsWorks,
+            polly: this.scanPolly,
+            rekognition: this.scanRekognition,
+            route53domains: this.scanRoute53Domains,
+            ses: this.scanSES,
+            waf: this.scanWAF
+        };
+        
+        return scanners[service];
+    }
+
+    // New service scanners for aws-inventory coverage
+    
+    async scanACM() {
+        const certificates = [];
+        
+        try {
+            const acm = new AWS.ACM();
+            const certificatesData = await acm.listCertificates().promise();
+            
+            for (const cert of certificatesData.CertificateSummaryList) {
+                certificates.push({
+                    domainName: cert.DomainName,
+                    certificateArn: cert.CertificateArn,
+                    status: cert.Status,
+                    type: cert.Type,
+                    notAfter: cert.NotAfter,
+                    notBefore: cert.NotBefore
+                });
+            }
+        } catch (error) {
+            console.error('Error scanning ACM:', error);
+        }
+        
+        this.addResult('acm', { certificates });
+    }
+
+    async scanApplicationAutoScaling() {
+        const scalableTargets = {};
+        
+        const namespaces = ['ecs', 'elasticmapreduce', 'ec2', 'appstream', 'dynamodb', 'rds'];
+        
+        for (const namespace of namespaces) {
+            try {
+                const autoscaling = new AWS.ApplicationAutoScaling();
+                const targetsData = await autoscaling.describeScalableTargets({
+                    ServiceNamespace: namespace
+                }).promise();
+                
+                scalableTargets[namespace] = targetsData.ScalableTargets || [];
+            } catch (error) {
+                console.error(`Error scanning Application Auto Scaling for ${namespace}:`, error);
+                scalableTargets[namespace] = [];
+            }
+        }
+        
+        this.addResult('applicationautoscaling', { scalableTargets });
+    }
+
+    async scanAutoScaling() {
+        const autoScalingGroups = [];
+        const launchConfigurations = [];
+        
+        for (const region of this.regions) {
+            try {
+                const autoscaling = new AWS.AutoScaling({ region });
+                
+                // Scan Auto Scaling Groups
+                const groupsData = await autoscaling.describeAutoScalingGroups().promise();
+                for (const group of groupsData.AutoScalingGroups) {
+                    autoScalingGroups.push({
+                        autoScalingGroupName: group.AutoScalingGroupName,
+                        minSize: group.MinSize,
+                        maxSize: group.MaxSize,
+                        desiredCapacity: group.DesiredCapacity,
+                        availabilityZones: group.AvailabilityZones,
+                        healthCheckType: group.HealthCheckType,
+                        createdTime: group.CreatedTime,
+                        region: region
+                    });
+                }
+                
+                // Scan Launch Configurations
+                const configsData = await autoscaling.describeLaunchConfigurations().promise();
+                for (const config of configsData.LaunchConfigurations) {
+                    launchConfigurations.push({
+                        launchConfigurationName: config.LaunchConfigurationName,
+                        imageId: config.ImageId,
+                        instanceType: config.InstanceType,
+                        createdTime: config.CreatedTime,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning Auto Scaling in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('autoscaling', { autoScalingGroups, launchConfigurations });
+    }
+
+    async scanCloudWatchEvents() {
+        const rules = [];
+        
+        for (const region of this.regions) {
+            try {
+                const events = new AWS.CloudWatchEvents({ region });
+                const rulesData = await events.listRules().promise();
+                
+                for (const rule of rulesData.Rules) {
+                    rules.push({
+                        name: rule.Name,
+                        arn: rule.Arn,
+                        eventPattern: rule.EventPattern,
+                        state: rule.State,
+                        description: rule.Description,
+                        scheduleExpression: rule.ScheduleExpression,
+                        roleArn: rule.RoleArn,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning CloudWatch Events in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('cloudwatchevents', { rules });
+    }
+
+    async scanCloudWatchLogs() {
+        const logGroups = [];
+        const exportTasks = [];
+        const destinations = [];
+        const metricFilters = [];
+        const resourcePolicies = [];
+        
+        for (const region of this.regions) {
+            try {
+                const logs = new AWS.CloudWatchLogs({ region });
+                
+                // Scan Log Groups
+                const groupsData = await logs.describeLogGroups().promise();
+                for (const group of groupsData.logGroups) {
+                    logGroups.push({
+                        logGroupName: group.logGroupName,
+                        creationTime: group.creationTime,
+                        retentionInDays: group.retentionInDays,
+                        metricFilterCount: group.metricFilterCount,
+                        storedBytes: group.storedBytes,
+                        region: region
+                    });
+                }
+                
+                // Scan Export Tasks
+                try {
+                    const exportData = await logs.describeExportTasks().promise();
+                    for (const task of exportData.exportTasks) {
+                        exportTasks.push({
+                            taskId: task.taskId,
+                            taskName: task.taskName,
+                            logGroupName: task.logGroupName,
+                            from: task.from,
+                            to: task.to,
+                            destination: task.destination,
+                            status: task.status,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Export tasks might not be available in all regions
+                }
+                
+                // Scan Destinations
+                try {
+                    const destData = await logs.describeDestinations().promise();
+                    for (const dest of destData.destinations) {
+                        destinations.push({
+                            destinationName: dest.destinationName,
+                            targetArn: dest.targetArn,
+                            roleArn: dest.roleArn,
+                            arn: dest.arn,
+                            creationTime: dest.creationTime,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Destinations might not be available in all regions
+                }
+                
+                // Scan Metric Filters
+                try {
+                    const filterData = await logs.describeMetricFilters().promise();
+                    for (const filter of filterData.metricFilters) {
+                        metricFilters.push({
+                            filterName: filter.filterName,
+                            filterPattern: filter.filterPattern,
+                            creationTime: filter.creationTime,
+                            logGroupName: filter.logGroupName,
+                            metricTransformations: filter.metricTransformations,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Metric filters might not be available in all regions
+                }
+                
+                // Scan Resource Policies
+                try {
+                    const policyData = await logs.describeResourcePolicies().promise();
+                    for (const policy of policyData.resourcePolicies) {
+                        resourcePolicies.push({
+                            policyName: policy.policyName,
+                            lastUpdatedTime: policy.lastUpdatedTime,
+                            policyDocument: policy.policyDocument,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Resource policies might not be available in all regions
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning CloudWatch Logs in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('cloudwatchlogs', { 
+            logGroups, 
+            exportTasks, 
+            destinations, 
+            metricFilters, 
+            resourcePolicies 
+        });
+    }
+
+    async scanCodeDeploy() {
+        const applications = [];
+        const githubTokens = [];
+        const onPremisesInstances = [];
+        
+        for (const region of this.regions) {
+            try {
+                const codedeploy = new AWS.CodeDeploy({ region });
+                
+                // Scan Applications
+                const appsData = await codedeploy.listApplications().promise();
+                for (const app of appsData.applications) {
+                    applications.push({
+                        applicationName: app,
+                        region: region
+                    });
+                }
+                
+                // Scan GitHub Account Tokens
+                try {
+                    const tokensData = await codedeploy.listGitHubAccountTokenNames().promise();
+                    for (const token of tokensData.tokenNameList) {
+                        githubTokens.push({
+                            tokenName: token,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // GitHub tokens might not be available in all regions
+                }
+                
+                // Scan On-Premises Instances
+                try {
+                    const instancesData = await codedeploy.listOnPremisesInstances().promise();
+                    for (const instance of instancesData.instanceNames) {
+                        onPremisesInstances.push({
+                            instanceName: instance,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // On-premises instances might not be available in all regions
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning CodeDeploy in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('codedeploy', { applications, githubTokens, onPremisesInstances });
+    }
+
+    async scanCognitoIdentity() {
+        const identityPools = [];
+        
+        for (const region of this.regions) {
+            // Skip regions where Cognito Identity is not available
+            const skipRegions = ['ca-central-1', 'eu-west-3', 'sa-east-1', 'us-west-1', 'us-east-2'];
+            if (skipRegions.includes(region)) continue;
+            
+            try {
+                const cognito = new AWS.CognitoIdentity({ region });
+                const poolsData = await cognito.listIdentityPools({ MaxResults: 60 }).promise();
+                
+                for (const pool of poolsData.IdentityPools) {
+                    identityPools.push({
+                        identityPoolId: pool.IdentityPoolId,
+                        identityPoolName: pool.IdentityPoolName,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning Cognito Identity in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('cognitoidentity', { identityPools });
+    }
+
+    async scanCognitoIdentityServiceProvider() {
+        const userPools = [];
+        
+        for (const region of this.regions) {
+            // Skip regions where Cognito Identity Service Provider is not available
+            const skipRegions = ['ca-central-1', 'eu-west-3', 'sa-east-1', 'us-west-1', 'us-east-2'];
+            if (skipRegions.includes(region)) continue;
+            
+            try {
+                const cognito = new AWS.CognitoIdentityServiceProvider({ region });
+                const poolsData = await cognito.listUserPools({ MaxResults: 60 }).promise();
+                
+                for (const pool of poolsData.UserPools) {
+                    userPools.push({
+                        id: pool.Id,
+                        name: pool.Name,
+                        status: pool.Status,
+                        lastModifiedDate: pool.LastModifiedDate,
+                        creationDate: pool.CreationDate,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning Cognito Identity Service Provider in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('cognitoidentityserviceprovider', { userPools });
+    }
+
+    async scanConfigService() {
+        const configRules = [];
+        const configurationRecorders = [];
+        const deliveryChannels = [];
+        
+        for (const region of this.regions) {
+            try {
+                const config = new AWS.ConfigService({ region });
+                
+                // Scan Config Rules
+                const rulesData = await config.describeConfigRules().promise();
+                for (const rule of rulesData.ConfigRules) {
+                    configRules.push({
+                        configRuleName: rule.ConfigRuleName,
+                        configRuleArn: rule.ConfigRuleArn,
+                        configRuleId: rule.ConfigRuleId,
+                        description: rule.Description,
+                        sourceOwner: rule.Source?.Owner,
+                        configRuleState: rule.ConfigRuleState,
+                        maximumExecutionFrequency: rule.MaximumExecutionFrequency,
+                        region: region
+                    });
+                }
+                
+                // Scan Configuration Recorders
+                const recordersData = await config.describeConfigurationRecorders().promise();
+                for (const recorder of recordersData.ConfigurationRecorders) {
+                    configurationRecorders.push({
+                        name: recorder.name,
+                        roleARN: recorder.roleARN,
+                        allSupported: recorder.recordingGroup?.allSupported,
+                        resourceTypes: recorder.recordingGroup?.resourceTypes,
+                        region: region
+                    });
+                }
+                
+                // Scan Delivery Channels
+                const channelsData = await config.describeDeliveryChannels().promise();
+                for (const channel of channelsData.DeliveryChannels) {
+                    deliveryChannels.push({
+                        name: channel.name,
+                        s3BucketName: channel.s3BucketName,
+                        s3KeyPrefix: channel.s3KeyPrefix,
+                        snsTopicARN: channel.snsTopicARN,
+                        deliveryFrequency: channel.configSnapshotDeliveryProperties?.deliveryFrequency,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning Config Service in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('configservice', { configRules, configurationRecorders, deliveryChannels });
+    }
+
+    async scanCUR() {
+        const reportDefinitions = [];
+        
+        try {
+            const cur = new AWS.CUR({ region: 'us-east-1' });
+            const reportsData = await cur.describeReportDefinitions().promise();
+            
+            for (const report of reportsData.ReportDefinitions) {
+                reportDefinitions.push({
+                    reportName: report.ReportName,
+                    timeUnit: report.TimeUnit,
+                    format: report.Format,
+                    compression: report.Compression,
+                    s3Region: report.S3Region,
+                    s3Bucket: report.S3Bucket,
+                    s3Prefix: report.S3Prefix,
+                    additionalArtifacts: report.AdditionalArtifacts
+                });
+            }
+        } catch (error) {
+            console.error('Error scanning Cost and Usage Reports:', error);
+        }
+        
+        this.addResult('cur', { reportDefinitions });
+    }
+
+    async scanDeviceFarm() {
+        const projects = [];
+        
+        try {
+            const devicefarm = new AWS.DeviceFarm({ region: 'us-west-2' });
+            const projectsData = await devicefarm.listProjects().promise();
+            
+            for (const project of projectsData.projects) {
+                projects.push({
+                    arn: project.arn,
+                    name: project.name,
+                    defaultJobTimeoutMinutes: project.defaultJobTimeoutMinutes,
+                    created: project.created
+                });
+            }
+        } catch (error) {
+            console.error('Error scanning Device Farm:', error);
+        }
+        
+        this.addResult('devicefarm', { projects });
+    }
+
+    async scanDirectConnect() {
+        const connections = [];
+        const lags = [];
+        const virtualGateways = [];
+        const virtualInterfaces = [];
+        
+        for (const region of this.regions) {
+            try {
+                const directconnect = new AWS.DirectConnect({ region });
+                
+                // Scan Connections
+                const connectionsData = await directconnect.describeConnections().promise();
+                for (const conn of connectionsData.connections) {
+                    connections.push({
+                        ownerAccount: conn.ownerAccount,
+                        connectionId: conn.connectionId,
+                        connectionName: conn.connectionName,
+                        connectionState: conn.connectionState,
+                        region: conn.region,
+                        location: conn.location,
+                        bandwidth: conn.bandwidth,
+                        partnerName: conn.partnerName,
+                        awsDevice: conn.awsDevice
+                    });
+                }
+                
+                // Scan LAGs
+                const lagsData = await directconnect.describeLags().promise();
+                for (const lag of lagsData.lags) {
+                    lags.push({
+                        connectionsBandwidth: lag.connectionsBandwidth,
+                        numberOfConnections: lag.numberOfConnections,
+                        lagId: lag.lagId,
+                        ownerAccount: lag.ownerAccount,
+                        lagName: lag.lagName,
+                        lagState: lag.lagState,
+                        location: lag.location,
+                        region: lag.region,
+                        minimumLinks: lag.minimumLinks,
+                        awsDevice: lag.awsDevice
+                    });
+                }
+                
+                // Scan Virtual Gateways
+                const gatewaysData = await directconnect.describeVirtualGateways().promise();
+                for (const gateway of gatewaysData.virtualGateways) {
+                    virtualGateways.push({
+                        virtualGatewayId: gateway.virtualGatewayId,
+                        virtualGatewayState: gateway.virtualGatewayState,
+                        region: region
+                    });
+                }
+                
+                // Scan Virtual Interfaces
+                const interfacesData = await directconnect.describeVirtualInterfaces().promise();
+                for (const vif of interfacesData.virtualInterfaces) {
+                    virtualInterfaces.push({
+                        ownerAccount: vif.ownerAccount,
+                        virtualInterfaceId: vif.virtualInterfaceId,
+                        location: vif.location,
+                        connectionId: vif.connectionId,
+                        virtualInterfaceType: vif.virtualInterfaceType,
+                        virtualInterfaceName: vif.virtualInterfaceName,
+                        amazonAddress: vif.amazonAddress,
+                        customerAddress: vif.customerAddress,
+                        virtualInterfaceState: vif.virtualInterfaceState,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning Direct Connect in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('directconnect', { connections, lags, virtualGateways, virtualInterfaces });
+    }
+
+    async scanDynamoDBStreams() {
+        const streams = [];
+        
+        for (const region of this.regions) {
+            try {
+                const dynamodbstreams = new AWS.DynamoDBStreams({ region });
+                const streamsData = await dynamodbstreams.listStreams().promise();
+                
+                for (const stream of streamsData.Streams) {
+                    streams.push({
+                        streamArn: stream.StreamArn,
+                        tableName: stream.TableName,
+                        streamLabel: stream.StreamLabel,
+                        lastEvaluatedStreamArn: stream.LastEvaluatedStreamArn,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning DynamoDB Streams in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('dynamodbstreams', { streams });
+    }
+
+    async scanInspector() {
+        const rulesPackages = [];
+        const assessmentTargets = [];
+        
+        for (const region of this.regions) {
+            // Skip regions where Inspector is not available
+            const skipRegions = ['ap-southeast-1', 'ca-central-1', 'eu-west-2', 'eu-west-3', 'sa-east-1'];
+            if (skipRegions.includes(region)) continue;
+            
+            try {
+                const inspector = new AWS.Inspector({ region });
+                
+                // Scan Rules Packages
+                const rulesData = await inspector.listRulesPackages().promise();
+                for (const rule of rulesData.rulesPackageArns) {
+                    rulesPackages.push({
+                        arn: rule,
+                        region: region
+                    });
+                }
+                
+                // Scan Assessment Targets
+                const targetsData = await inspector.listAssessmentTargets({ maxResults: 500 }).promise();
+                for (const target of targetsData.assessmentTargetArns) {
+                    assessmentTargets.push({
+                        arn: target,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning Inspector in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('inspector', { rulesPackages, assessmentTargets });
+    }
+
+    async scanKMS() {
+        const aliases = [];
+        const keys = [];
+        
+        for (const region of this.regions) {
+            try {
+                const kms = new AWS.KMS({ region });
+                
+                // Scan Aliases
+                const aliasesData = await kms.listAliases().promise();
+                for (const alias of aliasesData.Aliases) {
+                    aliases.push({
+                        aliasArn: alias.AliasArn,
+                        aliasName: alias.AliasName,
+                        targetKeyId: alias.TargetKeyId,
+                        region: region
+                    });
+                }
+                
+                // Scan Keys
+                const keysData = await kms.listKeys().promise();
+                for (const key of keysData.Keys) {
+                    keys.push({
+                        keyId: key.KeyId,
+                        keyArn: key.KeyArn,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning KMS in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('kms', { aliases, keys });
+    }
+
+    async scanMachineLearning() {
+        const batchPredictions = [];
+        const evaluations = [];
+        const dataSources = [];
+        const models = [];
+        
+        for (const region of this.regions) {
+            // Skip regions where Machine Learning is not available
+            const skipRegions = ['ap-northeast-1', 'ap-northeast-2', 'ap-south-1', 'ap-southeast-1', 'ap-southeast-2', 'ca-central-1', 'eu-central-1', 'eu-west-2', 'eu-west-3', 'sa-east-1', 'us-east-2', 'us-west-1', 'us-west-2'];
+            if (skipRegions.includes(region)) continue;
+            
+            try {
+                const ml = new AWS.MachineLearning({ region });
+                
+                // Scan Batch Predictions
+                const predictionsData = await ml.describeBatchPredictions().promise();
+                for (const prediction of predictionsData.Results) {
+                    batchPredictions.push({
+                        batchPredictionId: prediction.BatchPredictionId,
+                        mlModelId: prediction.MLModelId,
+                        batchPredictionDataSourceId: prediction.BatchPredictionDataSourceId,
+                        inputDataLocationS3: prediction.InputDataLocationS3,
+                        createdByIamUser: prediction.CreatedByIamUser,
+                        createdAt: prediction.CreatedAt,
+                        name: prediction.Name,
+                        status: prediction.Status,
+                        message: prediction.Message,
+                        region: region
+                    });
+                }
+                
+                // Scan Evaluations
+                const evaluationsData = await ml.describeEvaluations().promise();
+                for (const evaluation of evaluationsData.Results) {
+                    evaluations.push({
+                        evaluationId: evaluation.EvaluationId,
+                        mlModelId: evaluation.MLModelId,
+                        evaluationDataSourceId: evaluation.EvaluationDataSourceId,
+                        createdAt: evaluation.CreatedAt,
+                        name: evaluation.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Data Sources
+                const sourcesData = await ml.describeDataSources().promise();
+                for (const source of sourcesData.Results) {
+                    dataSources.push({
+                        dataSourceId: source.DataSourceId,
+                        dataLocationS3: source.DataLocationS3,
+                        createdByIamUser: source.CreatedByIamUser,
+                        createdAt: source.CreatedAt,
+                        dataSizeInBytes: source.DataSizeInBytes,
+                        name: source.Name,
+                        status: source.Status,
+                        region: region
+                    });
+                }
+                
+                // Scan Models
+                const modelsData = await ml.describeMLModels().promise();
+                for (const model of modelsData.Results) {
+                    models.push({
+                        mlModelId: model.MLModelId,
+                        trainingDataSourceId: model.TrainingDataSourceId,
+                        createdByIamUser: model.CreatedByIamUser,
+                        createdAt: model.CreatedAt,
+                        name: model.Name,
+                        status: model.Status,
+                        sizeInBytes: model.SizeInBytes,
+                        mlModelType: model.MLModelType,
+                        message: model.Message,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning Machine Learning in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('machinelearning', { batchPredictions, evaluations, dataSources, models });
+    }
+
+    async scanPolly() {
+        const lexicons = [];
+        
+        for (const region of this.regions) {
+            try {
+                const polly = new AWS.Polly({ region });
+                const lexiconsData = await polly.listLexicons().promise();
+                
+                for (const lexicon of lexiconsData.Lexicons) {
+                    lexicons.push({
+                        name: lexicon.Name,
+                        size: lexicon.Attributes?.Size,
+                        languageCode: lexicon.Attributes?.LanguageCode,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning Polly in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('polly', { lexicons });
+    }
+
+    async scanRekognition() {
+        const collections = [];
+        
+        for (const region of this.regions) {
+            try {
+                const rekognition = new AWS.Rekognition({ region });
+                const collectionsData = await rekognition.listCollections().promise();
+                
+                for (const collection of collectionsData.CollectionIds) {
+                    collections.push({
+                        collectionId: collection,
+                        region: region
+                    });
+                }
+            } catch (error) {
+                console.error(`Error scanning Rekognition in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('rekognition', { collections });
+    }
+
+    async scanRoute53Domains() {
+        const domains = [];
+        const operations = [];
+        
+        try {
+            const route53domains = new AWS.Route53Domains({ region: 'us-east-1' });
+            
+            // Scan Domains
+            const domainsData = await route53domains.listDomains().promise();
+            for (const domain of domainsData.Domains) {
+                domains.push({
+                    domainName: domain.DomainName,
+                    autoRenew: domain.AutoRenew,
+                    transferLock: domain.TransferLock,
+                    expiry: domain.Expiry
+                });
+            }
+            
+            // Scan Operations
+            const operationsData = await route53domains.listOperations().promise();
+            for (const operation of operationsData.Operations) {
+                operations.push({
+                    operationId: operation.OperationId,
+                    status: operation.Status,
+                    type: operation.Type,
+                    submittedDate: operation.SubmittedDate
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error scanning Route53 Domains:', error);
+        }
+        
+        this.addResult('route53domains', { domains, operations });
+    }
+
+    async scanSES() {
+        const identities = [];
+        const receiptFilters = [];
+        const receiptRuleSets = [];
+        const templates = [];
+        const verifiedEmailAddresses = [];
+        
+        for (const region of this.regions) {
+            // Skip regions where SES is not available
+            const skipRegions = ['eu-west-2', 'eu-west-3', 'ap-southeast-2', 'us-west-1', 'ap-south-1', 'ap-southeast-1', 'us-east-2', 'eu-central-1', 'ap-northeast-1', 'ca-central-1', 'ap-northeast-2', 'sa-east-1'];
+            if (skipRegions.includes(region)) continue;
+            
+            try {
+                const ses = new AWS.SES({ region });
+                
+                // Scan Identities
+                const identitiesData = await ses.listIdentities().promise();
+                for (const identity of identitiesData.Identities) {
+                    identities.push({
+                        identity: identity,
+                        region: region
+                    });
+                }
+                
+                // Scan Receipt Filters
+                try {
+                    const filtersData = await ses.listReceiptFilters().promise();
+                    for (const filter of filtersData.Filters) {
+                        receiptFilters.push({
+                            name: filter.Name,
+                            policy: filter.IpFilter?.Policy,
+                            cidr: filter.IpFilter?.Cidr,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Receipt filters might not be available in all regions
+                }
+                
+                // Scan Receipt Rule Sets
+                try {
+                    const ruleSetsData = await ses.listReceiptRuleSets().promise();
+                    for (const ruleSet of ruleSetsData.RuleSets) {
+                        receiptRuleSets.push({
+                            name: ruleSet.Name,
+                            createdTimestamp: ruleSet.CreatedTimestamp,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Receipt rule sets might not be available in all regions
+                }
+                
+                // Scan Templates
+                try {
+                    const templatesData = await ses.listTemplates().promise();
+                    for (const template of templatesData.TemplatesMetadata) {
+                        templates.push({
+                            name: template.Name,
+                            createdTimestamp: template.CreatedTimestamp,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Templates might not be available in all regions
+                }
+                
+                // Scan Verified Email Addresses
+                try {
+                    const verifiedData = await ses.listVerifiedEmailAddresses().promise();
+                    for (const email of verifiedData.VerifiedEmailAddresses) {
+                        verifiedEmailAddresses.push({
+                            address: email,
+                            region: region
+                        });
+                    }
+                } catch (error) {
+                    // Verified email addresses might not be available in all regions
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning SES in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('ses', { identities, receiptFilters, receiptRuleSets, templates, verifiedEmailAddresses });
+    }
+
+    async scanWAF() {
+        const byteMatchSets = [];
+        const geoMatchSets = [];
+        const ipSets = [];
+        const rateBasedRules = [];
+        const regexMatchSets = [];
+        const regexPatternSets = [];
+        const ruleGroups = [];
+        const rules = [];
+        const sizeConstraintSets = [];
+        const sqlInjectionMatchSets = [];
+        const subscribedRuleGroups = [];
+        const webACLs = [];
+        const xssMatchSets = [];
+        
+        for (const region of this.regions) {
+            try {
+                const waf = new AWS.WAF({ region });
+                
+                // Scan Byte Match Sets
+                const byteMatchData = await waf.listByteMatchSets().promise();
+                for (const set of byteMatchData.ByteMatchSets) {
+                    byteMatchSets.push({
+                        byteMatchSetId: set.ByteMatchSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Geo Match Sets
+                const geoMatchData = await waf.listGeoMatchSets().promise();
+                for (const set of geoMatchData.GeoMatchSets) {
+                    geoMatchSets.push({
+                        geoMatchSetId: set.GeoMatchSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan IP Sets
+                const ipSetsData = await waf.listIPSets().promise();
+                for (const set of ipSetsData.IPSets) {
+                    ipSets.push({
+                        ipSetId: set.IPSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Rate Based Rules
+                const rateRulesData = await waf.listRateBasedRules().promise();
+                for (const rule of rateRulesData.Rules) {
+                    rateBasedRules.push({
+                        ruleId: rule.RuleId,
+                        name: rule.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Regex Match Sets
+                const regexMatchData = await waf.listRegexMatchSets().promise();
+                for (const set of regexMatchData.RegexMatchSets) {
+                    regexMatchSets.push({
+                        regexMatchSetId: set.RegexMatchSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Regex Pattern Sets
+                const regexPatternData = await waf.listRegexPatternSets().promise();
+                for (const set of regexPatternData.RegexPatternSets) {
+                    regexPatternSets.push({
+                        regexPatternSetId: set.RegexPatternSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Rule Groups
+                const ruleGroupsData = await waf.listRuleGroups().promise();
+                for (const group of ruleGroupsData.RuleGroups) {
+                    ruleGroups.push({
+                        ruleGroupId: group.RuleGroupId,
+                        name: group.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Rules
+                const rulesData = await waf.listRules().promise();
+                for (const rule of rulesData.Rules) {
+                    rules.push({
+                        ruleId: rule.RuleId,
+                        name: rule.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Size Constraint Sets
+                const sizeConstraintData = await waf.listSizeConstraintSets().promise();
+                for (const set of sizeConstraintData.SizeConstraintSets) {
+                    sizeConstraintSets.push({
+                        sizeConstraintSetId: set.SizeConstraintSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan SQL Injection Match Sets
+                const sqlInjectionData = await waf.listSqlInjectionMatchSets().promise();
+                for (const set of sqlInjectionData.SqlInjectionMatchSets) {
+                    sqlInjectionMatchSets.push({
+                        sqlInjectionMatchSetId: set.SqlInjectionMatchSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan Subscribed Rule Groups
+                const subscribedGroupsData = await waf.listSubscribedRuleGroups().promise();
+                for (const group of subscribedGroupsData.RuleGroups) {
+                    subscribedRuleGroups.push({
+                        ruleGroupId: group.RuleGroupId,
+                        name: group.Name,
+                        metricName: group.MetricName,
+                        region: region
+                    });
+                }
+                
+                // Scan Web ACLs
+                const webACLsData = await waf.listWebACLs().promise();
+                for (const acl of webACLsData.WebACLs) {
+                    webACLs.push({
+                        webACLId: acl.WebACLId,
+                        name: acl.Name,
+                        region: region
+                    });
+                }
+                
+                // Scan XSS Match Sets
+                const xssMatchData = await waf.listXssMatchSets().promise();
+                for (const set of xssMatchData.XssMatchSets) {
+                    xssMatchSets.push({
+                        xssMatchSetId: set.XssMatchSetId,
+                        name: set.Name,
+                        region: region
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error scanning WAF in ${region}:`, error);
+            }
+        }
+        
+        this.addResult('waf', { 
+            byteMatchSets, 
+            geoMatchSets, 
+            ipSets, 
+            rateBasedRules, 
+            regexMatchSets, 
+            regexPatternSets, 
+            ruleGroups, 
+            rules, 
+            sizeConstraintSets, 
+            sqlInjectionMatchSets, 
+            subscribedRuleGroups, 
+            webACLs, 
+            xssMatchSets 
+        });
     }
 }
 
