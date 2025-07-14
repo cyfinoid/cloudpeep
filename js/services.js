@@ -63,6 +63,18 @@ const CLOUD_SERVICES = {
                 description: 'Big data processing',
                 icon: 'icons/aws/emr.svg'
             },
+            autoscaling: { 
+                name: 'Auto Scaling Groups', 
+                category: 'Compute', 
+                description: 'Auto scaling groups and launch configurations',
+                icon: 'icons/aws/autoscaling.svg'
+            },
+            applicationautoscaling: { 
+                name: 'Application Auto Scaling', 
+                category: 'Compute', 
+                description: 'Application auto scaling targets',
+                icon: 'icons/aws/autoscaling.svg'
+            },
             
             // Storage Services
             s3: { 
@@ -97,6 +109,12 @@ const CLOUD_SERVICES = {
                 description: 'NoSQL database',
                 icon: 'icons/aws/dynamodb.svg'
             },
+            dynamodbstreams: { 
+                name: 'DynamoDB Streams', 
+                category: 'Database', 
+                description: 'DynamoDB change streams',
+                icon: 'icons/aws/dynamodb.svg'
+            },
             redshift: { 
                 name: 'Redshift Clusters', 
                 category: 'Database', 
@@ -117,28 +135,16 @@ const CLOUD_SERVICES = {
             },
             
             // Networking Services
-            vpc: { 
-                name: 'VPCs', 
-                category: 'Networking', 
-                description: 'Virtual private clouds',
-                icon: 'icons/aws/vpc.svg'
-            },
-            subnets: { 
-                name: 'Subnets', 
-                category: 'Networking', 
-                description: 'Network subnets',
-                icon: 'icons/aws/subnets.svg'
-            },
-            securitygroups: { 
-                name: 'Security Groups', 
-                category: 'Networking', 
-                description: 'Firewall rules',
-                icon: 'icons/aws/securitygroups.svg'
-            },
             route53: { 
                 name: 'Route53 Zones', 
                 category: 'Networking', 
                 description: 'DNS service',
+                icon: 'icons/aws/route53.svg'
+            },
+            route53domains: { 
+                name: 'Route53 Domains', 
+                category: 'Networking', 
+                description: 'Domain registration',
                 icon: 'icons/aws/route53.svg'
             },
             apigateway: { 
@@ -153,6 +159,12 @@ const CLOUD_SERVICES = {
                 description: 'CDN service',
                 icon: 'icons/aws/cloudfront.svg'
             },
+            directconnect: { 
+                name: 'Direct Connect', 
+                category: 'Networking', 
+                description: 'Dedicated network connections',
+                icon: 'icons/aws/directconnect.svg'
+            },
             
             // Security Services
             iam: { 
@@ -160,6 +172,18 @@ const CLOUD_SERVICES = {
                 category: 'Security', 
                 description: 'Identity management',
                 icon: 'icons/aws/iam.svg'
+            },
+            acm: { 
+                name: 'ACM Certificates', 
+                category: 'Security', 
+                description: 'SSL/TLS certificates',
+                icon: 'icons/aws/acm.svg'
+            },
+            kms: { 
+                name: 'KMS Keys', 
+                category: 'Security', 
+                description: 'Key management service',
+                icon: 'icons/aws/kms.svg'
             },
             cloudtrail: { 
                 name: 'CloudTrail Trails', 
@@ -178,6 +202,18 @@ const CLOUD_SERVICES = {
                 category: 'Security', 
                 description: 'Security analytics',
                 icon: 'icons/aws/detective.svg'
+            },
+            inspector: { 
+                name: 'Inspector', 
+                category: 'Security', 
+                description: 'Security assessment',
+                icon: 'icons/aws/inspector.svg'
+            },
+            waf: { 
+                name: 'WAF', 
+                category: 'Security', 
+                description: 'Web application firewall',
+                icon: 'icons/aws/waf.svg'
             },
             
             // Analytics Services
@@ -205,82 +241,98 @@ const CLOUD_SERVICES = {
                 description: 'Monitoring',
                 icon: 'icons/aws/cloudwatch.svg'
             },
-            
-            // Media Services
-            mediaconvert: { 
-                name: 'MediaConvert Jobs', 
-                category: 'Media', 
-                description: 'Video processing',
-                icon: 'icons/aws/mediaconvert.svg'
+            cloudwatchevents: { 
+                name: 'CloudWatch Events', 
+                category: 'Analytics', 
+                description: 'Event routing',
+                icon: 'icons/aws/cloudwatchevents.svg'
             },
-            medialive: { 
-                name: 'MediaLive Channels', 
-                category: 'Media', 
-                description: 'Live streaming',
-                icon: 'icons/aws/medialive.svg'
-            },
-            mediapackage: { 
-                name: 'MediaPackage Channels', 
-                category: 'Media', 
-                description: 'Video delivery',
-                icon: 'icons/aws/mediapackage.svg'
-            },
-            elastictranscoder: { 
-                name: 'Elastic Transcoder', 
-                category: 'Media', 
-                description: 'Video transcoding',
-                icon: 'icons/aws/elastictranscoder.svg'
+            cloudwatchlogs: { 
+                name: 'CloudWatch Logs', 
+                category: 'Analytics', 
+                description: 'Log management',
+                icon: 'icons/aws/cloudwatchlogs.svg'
             },
             
             // AI/ML Services
             sagemaker: { 
-                name: 'SageMaker Notebooks', 
+                name: 'SageMaker', 
                 category: 'AI/ML', 
                 description: 'Machine learning',
                 icon: 'icons/aws/sagemaker.svg'
             },
             lex: { 
-                name: 'Lex Bots', 
+                name: 'Lex', 
                 category: 'AI/ML', 
                 description: 'Conversational AI',
                 icon: 'icons/aws/lex.svg'
             },
             iot: { 
-                name: 'IoT Things', 
+                name: 'IoT', 
                 category: 'AI/ML', 
                 description: 'Internet of Things',
                 icon: 'icons/aws/iot.svg'
+            },
+            rekognition: { 
+                name: 'Rekognition', 
+                category: 'AI/ML', 
+                description: 'Image and video analysis',
+                icon: 'icons/aws/rekognition.svg'
+            },
+            polly: { 
+                name: 'Polly', 
+                category: 'AI/ML', 
+                description: 'Text-to-speech',
+                icon: 'icons/aws/polly.svg'
+            },
+            machinelearning: { 
+                name: 'Machine Learning', 
+                category: 'AI/ML', 
+                description: 'Predictive analytics',
+                icon: 'icons/aws/machinelearning.svg'
             },
             
             // Development Services
             codepipeline: { 
                 name: 'CodePipeline', 
                 category: 'Development', 
-                description: 'CI/CD pipeline',
+                description: 'CI/CD pipelines',
                 icon: 'icons/aws/codepipeline.svg'
             },
             codecommit: { 
-                name: 'CodeCommit Repositories', 
+                name: 'CodeCommit', 
                 category: 'Development', 
                 description: 'Git repositories',
                 icon: 'icons/aws/codecommit.svg'
             },
+            codedeploy: { 
+                name: 'CodeDeploy', 
+                category: 'Development', 
+                description: 'Application deployment',
+                icon: 'icons/aws/codedeploy.svg'
+            },
             cloud9: { 
-                name: 'Cloud9 Environments', 
+                name: 'Cloud9', 
                 category: 'Development', 
                 description: 'Cloud IDE',
                 icon: 'icons/aws/cloud9.svg'
             },
             ssm: { 
-                name: 'SSM Documents', 
+                name: 'Systems Manager', 
                 category: 'Development', 
-                description: 'Systems Manager',
+                description: 'Systems management',
                 icon: 'icons/aws/ssm.svg'
+            },
+            devicefarm: { 
+                name: 'Device Farm', 
+                category: 'Development', 
+                description: 'Mobile app testing',
+                icon: 'icons/aws/devicefarm.svg'
             },
             
             // Management Services
             cloudformation: { 
-                name: 'CloudFormation Stacks', 
+                name: 'CloudFormation', 
                 category: 'Management', 
                 description: 'Infrastructure as code',
                 icon: 'icons/aws/cloudformation.svg'
@@ -292,10 +344,22 @@ const CLOUD_SERVICES = {
                 icon: 'icons/aws/organizations.svg'
             },
             backup: { 
-                name: 'Backup Plans', 
+                name: 'Backup', 
                 category: 'Management', 
                 description: 'Backup service',
                 icon: 'icons/aws/backup.svg'
+            },
+            configservice: { 
+                name: 'Config Service', 
+                category: 'Management', 
+                description: 'Configuration management',
+                icon: 'icons/aws/configservice.svg'
+            },
+            opsworks: { 
+                name: 'OpsWorks', 
+                category: 'Management', 
+                description: 'Configuration management',
+                icon: 'icons/aws/opsworks.svg'
             },
             
             // Messaging Services
@@ -311,6 +375,18 @@ const CLOUD_SERVICES = {
                 description: 'Message queuing',
                 icon: 'icons/aws/sqs.svg'
             },
+            mq: { 
+                name: 'MQ', 
+                category: 'Messaging', 
+                description: 'Message broker',
+                icon: 'icons/aws/mq.svg'
+            },
+            ses: { 
+                name: 'Simple Email Service', 
+                category: 'Messaging', 
+                description: 'Email service',
+                icon: 'icons/aws/ses.svg'
+            },
             
             // Container Services
             ecr: { 
@@ -322,7 +398,7 @@ const CLOUD_SERVICES = {
             
             // Additional Services
             appsync: { 
-                name: 'AppSync APIs', 
+                name: 'AppSync', 
                 category: 'Development', 
                 description: 'GraphQL service',
                 icon: 'icons/aws/appsync.svg'
@@ -340,46 +416,62 @@ const CLOUD_SERVICES = {
                 icon: 'icons/aws/workspaces.svg'
             },
             datasync: { 
-                name: 'DataSync Tasks', 
+                name: 'DataSync', 
                 category: 'Storage', 
                 description: 'Data transfer',
                 icon: 'icons/aws/datasync.svg'
             },
             pinpoint: { 
-                name: 'Pinpoint Applications', 
+                name: 'Pinpoint', 
                 category: 'Messaging', 
                 description: 'Mobile engagement',
                 icon: 'icons/aws/pinpoint.svg'
             },
-            mq: { 
-                name: 'MQ Brokers', 
-                category: 'Messaging', 
-                description: 'Message broker',
-                icon: 'icons/aws/mq.svg'
-            },
-            opsworks: { 
-                name: 'OpsWorks Stacks', 
-                category: 'Management', 
-                description: 'Configuration management',
-                icon: 'icons/aws/opsworks.svg'
-            },
             appmesh: { 
-                name: 'App Mesh Meshes', 
+                name: 'App Mesh', 
                 category: 'Networking', 
                 description: 'Service mesh',
                 icon: 'icons/aws/appmesh.svg'
             },
             mediastore: { 
-                name: 'MediaStore Containers', 
+                name: 'MediaStore', 
                 category: 'Media', 
                 description: 'Media storage',
                 icon: 'icons/aws/mediastore.svg'
             },
-            serverlessrepo: { 
-                name: 'Serverless Repo', 
-                category: 'Development', 
-                description: 'Application repository',
-                icon: 'icons/aws/serverlessrepo.svg'
+            
+            // Media Services
+            mediaconvert: { 
+                name: 'MediaConvert Jobs', 
+                category: 'Media', 
+                description: 'Video processing',
+                icon: 'icons/aws/mediaconvert.svg'
+            },
+            medialive: { 
+                name: 'MediaLive Channels', 
+                category: 'Media', 
+                description: 'Live streaming',
+                icon: 'icons/aws/medialive.svg'
+            },
+            mediapackage: { 
+                name: 'MediaPackage', 
+                category: 'Media', 
+                description: 'Video packaging',
+                icon: 'icons/aws/mediapackage.svg'
+            },
+            elastictranscoder: { 
+                name: 'Elastic Transcoder', 
+                category: 'Media', 
+                description: 'Video transcoding',
+                icon: 'icons/aws/elastictranscoder.svg'
+            },
+            
+            // Cost & Usage
+            cur: { 
+                name: 'Cost and Usage Reports', 
+                category: 'Management', 
+                description: 'Cost reporting',
+                icon: 'icons/aws/cur.svg'
             }
         }
     },

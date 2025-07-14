@@ -310,7 +310,50 @@ class AWSScanner {
                 category: 'Security',
                 global: false,
                 apis: ['listByteMatchSets', 'listGeoMatchSets', 'listIPSets', 'listRateBasedRules', 'listRegexMatchSets', 'listRegexPatternSets', 'listRuleGroups', 'listRules', 'listSizeConstraintSets', 'listSqlInjectionMatchSets', 'listSubscribedRuleGroups', 'listWebACLs', 'listXssMatchSets']
-            }
+            },
+            // Add missing service definitions for all scanners
+            'ec2': { name: 'EC2 Instances', category: 'Compute', global: false, apis: [] },
+            'ecs': { name: 'ECS Clusters', category: 'Compute', global: false, apis: [] },
+            'eks': { name: 'EKS Clusters', category: 'Compute', global: false, apis: [] },
+            'elasticbeanstalk': { name: 'Elastic Beanstalk', category: 'Compute', global: false, apis: [] },
+            'emr': { name: 'EMR Clusters', category: 'Compute', global: false, apis: [] },
+            'ecr': { name: 'ECR Repositories', category: 'Containers', global: false, apis: [] },
+            'elasticache': { name: 'ElastiCache Clusters', category: 'Database', global: false, apis: [] },
+            'athena': { name: 'Athena Workgroups', category: 'Database', global: false, apis: [] },
+            'cloudformation': { name: 'CloudFormation', category: 'Management', global: false, apis: [] },
+            'cloud9': { name: 'Cloud9', category: 'Development', global: false, apis: [] },
+            'cloudtrail': { name: 'CloudTrail Trails', category: 'Security', global: false, apis: [] },
+            'cloudwatchevents': { name: 'CloudWatch Events', category: 'Analytics', global: false, apis: [] },
+            'cloudwatchlogs': { name: 'CloudWatch Logs', category: 'Analytics', global: false, apis: [] },
+            'codepipeline': { name: 'CodePipeline', category: 'Development', global: false, apis: [] },
+            'datapipeline': { name: 'Data Pipeline', category: 'Analytics', global: false, apis: [] },
+            'datasync': { name: 'DataSync', category: 'Storage', global: false, apis: [] },
+            'detective': { name: 'Detective', category: 'Security', global: false, apis: [] },
+            'glue': { name: 'Glue', category: 'Analytics', global: false, apis: [] },
+            'iam': { name: 'IAM', category: 'Security', global: true, apis: [] },
+            'kinesis': { name: 'Kinesis', category: 'Analytics', global: false, apis: [] },
+            'lambda': { name: 'Lambda', category: 'Compute', global: false, apis: [] },
+            'lex': { name: 'Lex', category: 'AI/ML', global: false, apis: [] },
+            'mediaconvert': { name: 'MediaConvert', category: 'Media', global: false, apis: [] },
+            'medialive': { name: 'MediaLive', category: 'Media', global: false, apis: [] },
+            'mediapackage': { name: 'MediaPackage', category: 'Media', global: false, apis: [] },
+            'mediastore': { name: 'MediaStore', category: 'Media', global: false, apis: [] },
+            'pinpoint': { name: 'Pinpoint', category: 'Messaging', global: false, apis: [] },
+            'polly': { name: 'Polly', category: 'AI/ML', global: false, apis: [] },
+            'redshift': { name: 'Redshift', category: 'Database', global: false, apis: [] },
+            'route53': { name: 'Route53', category: 'Networking', global: true, apis: [] },
+            'sagemaker': { name: 'SageMaker', category: 'AI/ML', global: false, apis: [] },
+            'secretsmanager': { name: 'Secrets Manager', category: 'Security', global: false, apis: [] },
+            'sns': { name: 'SNS', category: 'Messaging', global: false, apis: [] },
+            'sqs': { name: 'SQS', category: 'Messaging', global: false, apis: [] },
+            'stepfunctions': { name: 'Step Functions', category: 'Analytics', global: false, apis: [] },
+            'workspaces': { name: 'WorkSpaces', category: 'Compute', global: false, apis: [] },
+            'appsync': { name: 'AppSync', category: 'Development', global: false, apis: [] },
+            'appmesh': { name: 'App Mesh', category: 'Networking', global: false, apis: [] },
+            'backup': { name: 'Backup', category: 'Management', global: false, apis: [] },
+            'mq': { name: 'MQ', category: 'Messaging', global: false, apis: [] },
+            'opsworks': { name: 'OpsWorks', category: 'Management', global: false, apis: [] },
+            'elastictranscoder': { name: 'Elastic Transcoder', category: 'Media', global: false, apis: [] }
         };
     }
 
@@ -421,10 +464,17 @@ class AWSScanner {
             
             // Create parallel scan promise for this service
             const servicePromise = this.scanServiceParallel(service, serviceDefinition, regionsToScan)
-                .then(() => {
+                .then((serviceResults) => {
                     completedServices++;
-                    successfulServices++;
-                    console.log(`✅ [${completedServices}/${services.length}] ${service} completed successfully`);
+                    // Check if the service had any errors - handle undefined/null cases
+                    const hasErrors = serviceResults && serviceResults.errors && serviceResults.errors.length > 0;
+                    if (hasErrors) {
+                        failedServices++;
+                        console.log(`❌ [${completedServices}/${services.length}] ${service} completed with errors`);
+                    } else {
+                        successfulServices++;
+                        console.log(`✅ [${completedServices}/${services.length}] ${service} completed successfully`);
+                    }
                 })
                 .catch((error) => {
                     completedServices++;
@@ -508,6 +558,9 @@ class AWSScanner {
         console.log(`[${scanId}] ✅ ${service} completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
         
         this.addResult(service, serviceResults);
+        
+        // Return the service results for error checking
+        return serviceResults;
     }
 
     /**
@@ -536,11 +589,24 @@ class AWSScanner {
                 const originalRegion = this.currentRegion;
                 this.currentRegion = region;
                 
-                // Execute the scanner
-                await scanner.call(this);
+                // Execute the scanner and get the returned data
+                const scannerData = await scanner.call(this);
                 
                 // Restore original region
                 this.currentRegion = originalRegion;
+                
+                // Add the scanner data to region results
+                if (scannerData) {
+                    regionResult.resources = scannerData;
+                    // Calculate total resources
+                    if (typeof scannerData === 'object') {
+                        Object.keys(scannerData).forEach(key => {
+                            if (Array.isArray(scannerData[key])) {
+                                regionResult.totalResources += scannerData[key].length;
+                            }
+                        });
+                    }
+                }
             } else {
                 // Use generic API scanning for services without specific scanners
                 await this.scanServiceGeneric(service, serviceDefinition, region, regionResult);
@@ -894,190 +960,154 @@ class AWSScanner {
                 
                 // Scan instances
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'instances', `Scanning instances in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'instances', 'Scanning EC2 instances', '1/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning EC2 instances in ${region}...`);
                 const instancesData = await ec2.describeInstances().promise();
-                const regionInstances = [];
                 for (const reservation of instancesData.Reservations) {
                     for (const instance of reservation.Instances) {
-                        // Format block device mappings
-                        const blockDeviceMappings = instance.BlockDeviceMappings ? 
-                            instance.BlockDeviceMappings.map(device => 
-                                `${device.DeviceName}: ${device.Ebs ? device.Ebs.VolumeId : 'N/A'}`
-                            ).join(', ') : 'None';
-                        
-                        // Format security groups
-                        const securityGroups = instance.SecurityGroups ? 
-                            instance.SecurityGroups.map(sg => 
-                                `${sg.GroupName} (${sg.GroupId})`
-                            ).join(', ') : 'None';
-                        
-                        regionInstances.push({
+                        instances.push({
                             instanceId: instance.InstanceId,
                             instanceType: instance.InstanceType,
                             state: instance.State.Name,
                             launchTime: instance.LaunchTime,
                             publicIpAddress: instance.PublicIpAddress,
                             privateIpAddress: instance.PrivateIpAddress,
-                            iamInstanceProfile: instance.IamInstanceProfile ? instance.IamInstanceProfile.Arn : null,
-                            blockDeviceMappings: blockDeviceMappings,
                             vpcId: instance.VpcId,
                             subnetId: instance.SubnetId,
-                            securityGroups: securityGroups,
                             region: region
                         });
+                        totalInstances++;
                     }
                 }
-                instances.push(...regionInstances);
-                totalInstances += regionInstances.length;
-                console.log(`[${scanId}] ✅ Found ${regionInstances.length} instances in ${region}`);
 
                 // Scan VPCs
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'vpcs', `Scanning VPCs in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'vpcs', 'Scanning VPCs', '2/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning VPCs in ${region}...`);
                 const vpcsData = await ec2.describeVpcs().promise();
-                const regionVpcs = [];
                 for (const vpc of vpcsData.Vpcs) {
-                    regionVpcs.push({
+                    vpcs.push({
                         vpcId: vpc.VpcId,
                         cidrBlock: vpc.CidrBlock,
                         state: vpc.State,
                         isDefault: vpc.IsDefault,
-                        flowLogs: [], // Will be populated separately if needed
                         region: region
                     });
+                    totalVpcs++;
                 }
-                vpcs.push(...regionVpcs);
-                totalVpcs += regionVpcs.length;
-                console.log(`[${scanId}] ✅ Found ${regionVpcs.length} VPCs in ${region}`);
 
-                // Scan security groups
+                // Scan Security Groups
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'security-groups', `Scanning security groups in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'securitygroups', 'Scanning Security Groups', '3/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning security groups in ${region}...`);
-                const sgData = await ec2.describeSecurityGroups().promise();
-                const regionSecurityGroups = [];
-                for (const sg of sgData.SecurityGroups) {
-                    regionSecurityGroups.push({
-                        id: sg.GroupId,
-                        name: sg.GroupName,
+                const securityGroupsData = await ec2.describeSecurityGroups().promise();
+                for (const sg of securityGroupsData.SecurityGroups) {
+                    securityGroups.push({
+                        groupId: sg.GroupId,
+                        groupName: sg.GroupName,
                         description: sg.Description,
+                        vpcId: sg.VpcId,
                         region: region
                     });
+                    totalSecurityGroups++;
                 }
-                securityGroups.push(...regionSecurityGroups);
-                totalSecurityGroups += regionSecurityGroups.length;
-                console.log(`[${scanId}] ✅ Found ${regionSecurityGroups.length} security groups in ${region}`);
 
-                // Scan subnets
+                // Scan Subnets
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'subnets', `Scanning subnets in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'subnets', 'Scanning Subnets', '4/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning subnets in ${region}...`);
                 const subnetsData = await ec2.describeSubnets().promise();
-                const regionSubnets = [];
                 for (const subnet of subnetsData.Subnets) {
-                    regionSubnets.push({
-                        id: subnet.SubnetId,
-                        cidr: subnet.CidrBlock,
+                    subnets.push({
+                        subnetId: subnet.SubnetId,
+                        vpcId: subnet.VpcId,
+                        cidrBlock: subnet.CidrBlock,
                         availabilityZone: subnet.AvailabilityZone,
+                        state: subnet.State,
                         region: region
                     });
                 }
-                subnets.push(...regionSubnets);
-                console.log(`[${scanId}] ✅ Found ${regionSubnets.length} subnets in ${region}`);
 
-                // Scan volumes
+                // Scan Volumes
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'volumes', `Scanning volumes in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'volumes', 'Scanning EBS Volumes', '5/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning volumes in ${region}...`);
                 const volumesData = await ec2.describeVolumes().promise();
-                const regionVolumes = [];
                 for (const volume of volumesData.Volumes) {
-                    regionVolumes.push({
-                        id: volume.VolumeId,
+                    volumes.push({
+                        volumeId: volume.VolumeId,
                         size: volume.Size,
-                        type: volume.VolumeType,
+                        volumeType: volume.VolumeType,
                         state: volume.State,
+                        availabilityZone: volume.AvailabilityZone,
                         region: region
                     });
                 }
-                volumes.push(...regionVolumes);
-                console.log(`[${scanId}] ✅ Found ${regionVolumes.length} volumes in ${region}`);
 
-                // Scan snapshots
+                // Scan Snapshots
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'snapshots', `Scanning snapshots in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'snapshots', 'Scanning EBS Snapshots', '6/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning snapshots in ${region}...`);
                 const snapshotsData = await ec2.describeSnapshots({ OwnerIds: ['self'] }).promise();
-                const regionSnapshots = [];
                 for (const snapshot of snapshotsData.Snapshots) {
-                    regionSnapshots.push({
-                        id: snapshot.SnapshotId,
+                    snapshots.push({
+                        snapshotId: snapshot.SnapshotId,
                         volumeId: snapshot.VolumeId,
                         size: snapshot.VolumeSize,
                         state: snapshot.State,
+                        startTime: snapshot.StartTime,
                         region: region
                     });
                 }
-                snapshots.push(...regionSnapshots);
-                console.log(`[${scanId}] ✅ Found ${regionSnapshots.length} snapshots in ${region}`);
 
                 // Scan AMIs
                 if (this.onDetailedProgressUpdate) {
-                    this.onDetailedProgressUpdate('ec2', 'amis', `Scanning AMIs in ${region}`, `${regionsScanned}/${this.regions.length}`);
+                    this.onDetailedProgressUpdate('ec2', 'amis', 'Scanning AMIs', '7/7');
                 }
-                console.log(`[${scanId}] 🔍 Scanning AMIs in ${region}...`);
                 const amisData = await ec2.describeImages({ Owners: ['self'] }).promise();
-                const regionAmis = [];
                 for (const ami of amisData.Images) {
-                    regionAmis.push({
-                        id: ami.ImageId,
+                    amis.push({
+                        imageId: ami.ImageId,
                         name: ami.Name,
                         description: ami.Description,
                         architecture: ami.Architecture,
+                        state: ami.State,
+                        creationDate: ami.CreationDate,
                         region: region
                     });
                 }
-                amis.push(...regionAmis);
-                console.log(`[${scanId}] ✅ Found ${regionAmis.length} AMIs in ${region}`);
 
                 const regionDuration = Date.now() - regionStartTime;
-                console.log(`[${scanId}] ✅ Region ${region} completed in ${Utils.DataUtils.formatDuration(regionDuration)}`);
+                console.log(`✅ EC2 in ${region}: ${totalInstances} instances, ${totalVpcs} VPCs, ${totalSecurityGroups} security groups in ${Utils.DataUtils.formatDuration(regionDuration)}`);
 
             } catch (error) {
-                const regionDuration = Date.now() - regionStartTime;
-                console.error(`[${scanId}] ❌ Error scanning EC2 in ${region} after ${Utils.DataUtils.formatDuration(regionDuration)}:`, error);
+                console.error(`❌ Error scanning EC2 in ${region}:`, error);
+                const categorizedError = this.categorizeError(error, region);
+                console.error(`Categorized error:`, categorizedError);
             }
         }
 
         const serviceDuration = Date.now() - serviceStartTime;
-        console.log(`[${scanId}] 🎉 EC2 scan completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`, {
-            totalInstances: totalInstances,
-            totalVpcs: totalVpcs,
-            totalSecurityGroups: totalSecurityGroups,
-            totalSubnets: subnets.length,
-            totalVolumes: volumes.length,
-            totalSnapshots: snapshots.length,
-            totalAmis: amis.length,
-            regionsScanned: regionsScanned
-        });
+        console.log(`[${scanId}] ✅ EC2 scan completed in ${Utils.DataUtils.formatDuration(serviceDuration)}`);
+        console.log(`[${scanId}] 📊 EC2 Summary: ${totalInstances} instances, ${totalVpcs} VPCs, ${totalSecurityGroups} security groups across ${regionsScanned} regions`);
 
-        this.addResult('ec2', {
+        // Return the data instead of calling addResult for parallel compatibility
+        return {
             instances,
             vpcs,
             securityGroups,
             subnets,
             volumes,
             snapshots,
-            amis
-        });
+            amis,
+            summary: {
+                totalInstances,
+                totalVpcs,
+                totalSecurityGroups,
+                regionsScanned,
+                scanTime: serviceDuration
+            }
+        };
     }
 
     async scanLambda() {
@@ -1118,42 +1148,34 @@ class AWSScanner {
                         const envVarSummary = envVarCount > 0 ? 
                             `${envVarCount} variables` : 'None';
                         
-                        // Format environment variables as a readable string
-                        const envVarString = Object.keys(environmentVariables).length > 0 ? 
-                            Object.entries(environmentVariables)
-                                .map(([key, value]) => `${key}=${value}`)
-                                .join(', ') : 'None';
-                        
                         functions.push({
                             functionName: func.FunctionName,
+                            functionArn: func.FunctionArn,
                             runtime: func.Runtime,
                             handler: func.Handler,
                             codeSize: func.CodeSize,
                             description: func.Description,
-                            timeout: functionConfig.Timeout,
-                            memorySize: functionConfig.MemorySize,
-                            role: functionConfig.Role,
-                            environmentVariables: envVarString,
-                            sensitiveEnvironmentVariables: sensitiveVars.length > 0 ? sensitiveVars.join(', ') : 'None',
-                            hasEnvironmentVariables: Object.keys(environmentVariables).length > 0,
+                            timeout: func.Timeout,
+                            memorySize: func.MemorySize,
+                            lastModified: func.LastModified,
+                            environmentVariables: envVarSummary,
+                            sensitiveEnvironmentVariables: sensitiveVars.length > 0 ? sensitiveVars : undefined,
                             region: region
                         });
-                    } catch (error) {
-                        // If we can't get detailed config, still include basic function info
-                        console.warn(`Could not get detailed config for Lambda function ${func.FunctionName}:`, error);
+                    } catch (configError) {
+                        // If we can't get detailed config, still add basic function info
                         functions.push({
                             functionName: func.FunctionName,
+                            functionArn: func.FunctionArn,
                             runtime: func.Runtime,
                             handler: func.Handler,
                             codeSize: func.CodeSize,
                             description: func.Description,
-                            timeout: null,
-                            memorySize: null,
-                            role: null,
-                            environmentVariables: 'None',
-                            sensitiveEnvironmentVariables: 'None',
-                            hasEnvironmentVariables: false,
-                            region: region
+                            timeout: func.Timeout,
+                            memorySize: func.MemorySize,
+                            lastModified: func.LastModified,
+                            region: region,
+                            configError: configError.message
                         });
                     }
                 }
@@ -1162,7 +1184,7 @@ class AWSScanner {
             }
         }
 
-        this.addResult('lambda', { functions });
+        return { functions };
     }
 
     async scanECS() {
@@ -1537,10 +1559,10 @@ class AWSScanner {
                 }
             }
 
-            this.addResult('iam', results);
+            return results;
         } catch (error) {
             console.error('Error scanning IAM:', error);
-            this.addResult('iam', { error: error.message });
+            return { error: error.message };
         }
     }
 
@@ -1561,9 +1583,9 @@ class AWSScanner {
                 });
             }
 
-            this.addResult('cloudfront', { distributions });
+            return { distributions };
         } catch (error) {
-            this.addResult('cloudfront', { error: error.message });
+            return { error: error.message };
         }
     }
 
@@ -1586,7 +1608,7 @@ class AWSScanner {
             }
         }
 
-        this.addResult('sns', { topics });
+        return { topics };
     }
 
     async scanSQS() {
@@ -1608,7 +1630,7 @@ class AWSScanner {
             }
         }
 
-        this.addResult('sqs', { queues });
+        return { queues };
     }
 
     // Implemented AWS Service Scanners
@@ -1635,7 +1657,7 @@ class AWSScanner {
             }
         }
 
-        this.addResult('elasticbeanstalk', { environments });
+        return { environments };
     }
 
     async scanRoute53() {
@@ -1667,7 +1689,7 @@ class AWSScanner {
                 });
             }
 
-            this.addResult('route53', results);
+            return results;
         } catch (error) {
             console.error('Error scanning Route53:', error);
             this.addResult('route53', { error: error.message });
@@ -2804,7 +2826,42 @@ class AWSScanner {
      * @param {Object} data - Service data
      */
     addResult(service, data) {
-        this.results[service] = data;
+        // Handle both old format and new parallel format
+        if (data && data.regions) {
+            // New parallel format - flatten the data for UI compatibility
+            const flattenedData = {};
+            let totalResources = 0;
+            
+            // Process each region's data
+            Object.keys(data.regions).forEach(region => {
+                const regionData = data.regions[region];
+                if (regionData.resources) {
+                    // Merge all resources from this region
+                    Object.keys(regionData.resources).forEach(resourceType => {
+                        if (!flattenedData[resourceType]) {
+                            flattenedData[resourceType] = [];
+                        }
+                        if (Array.isArray(regionData.resources[resourceType])) {
+                            flattenedData[resourceType].push(...regionData.resources[resourceType]);
+                            totalResources += regionData.resources[resourceType].length;
+                        }
+                    });
+                }
+            });
+            
+            // Add summary information as a separate field
+            flattenedData.summary = {
+                totalResources: totalResources,
+                regionsScanned: Object.keys(data.regions).length,
+                global: data.global || false,
+                errors: data.errors || []
+            };
+            
+            this.results[service] = flattenedData;
+        } else {
+            // Old format - direct data assignment
+            this.results[service] = data;
+        }
     }
 
     /**

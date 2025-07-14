@@ -438,8 +438,14 @@ class PeekInTheCloud {
                 loadingOverlay.classList.remove('hidden');
             }
 
-            // Initialize progress tracking - scan all services
-            const servicesToScan = Object.keys(CLOUD_SERVICES[provider]?.services || {});
+            // Get scanner first to get accurate service count
+            const scanner = this.getScanner(provider);
+            if (!scanner) {
+                throw new Error(`Scanner not available for ${provider}`);
+            }
+
+            // Initialize progress tracking - use scanner's service count for accuracy
+            const servicesToScan = scanner.getAvailableServices ? scanner.getAvailableServices() : Object.keys(CLOUD_SERVICES[provider]?.services || {});
             this.initializeScanProgress(servicesToScan.length);
             this.updateScanStatus('Initializing Scanner...', `Preparing to scan ${servicesToScan.length} services`);
 
@@ -474,7 +480,7 @@ class PeekInTheCloud {
                                 loadingOverlay.classList.remove('hidden');
                             }
                             try {
-                                await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
+                                await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, scanner);
                                 resolve();
                             } catch (error) {
                                 reject(error);
@@ -497,7 +503,7 @@ class PeekInTheCloud {
             }
 
             // Continue with scan
-            await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan);
+            await this.continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, scanner);
 
         } catch (error) {
             console.error(`[${scanId}] ❌ Scan failed:`, error);
@@ -524,20 +530,12 @@ class PeekInTheCloud {
      * @param {Function} resolve - Promise resolve function (optional)
      * @param {Function} reject - Promise reject function (optional)
      */
-    async continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, resolve = null, reject = null) {
+    async continueScan(provider, credentials, scanId, scanStartTime, servicesToScan, scanner, resolve = null, reject = null) {
         try {
             // Save credentials
             console.log(`[${scanId}] 💾 Saving credentials...`);
             this.saveCredentials(provider, credentials);
             console.log(`[${scanId}] ✅ Credentials saved`);
-
-            // Initialize scanner
-            console.log(`[${scanId}] 🔧 Initializing scanner...`);
-            const scanner = this.getScanner(provider);
-            if (!scanner) {
-                throw new Error(`Scanner not available for ${provider}`);
-            }
-            console.log(`[${scanId}] ✅ Scanner initialized:`, scanner.constructor.name);
 
             console.log(`[${scanId}] 📋 Services to scan:`, {
                 selected: servicesToScan.length,
@@ -561,7 +559,8 @@ class PeekInTheCloud {
             // Override scanner's result tracking with our UI updates
             const originalAddResult = scanner.addResult;
             scanner.addResult = (service, data) => {
-                const isFailed = data.error;
+                // Handle undefined/null data gracefully
+                const isFailed = data && (data.error || (data.summary && data.summary.errors && data.summary.errors.length > 0));
                 this.updateScanProgress(service, isFailed ? 'Failed' : 'Completed', true, isFailed);
                 return originalAddResult.call(scanner, service, data);
             };
