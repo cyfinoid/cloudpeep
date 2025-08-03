@@ -273,6 +273,22 @@ body {
     background: #5a6268;
 }
 
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
 /* Service Grid */
 .service-grid {
     display: grid;
@@ -972,7 +988,7 @@ body {
 }
 
 /* Modal Overlay */
-.modal {
+.modal, .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -1107,7 +1123,7 @@ body {
     border: 2px solid #f56565;
 }
 
-.modal-header {
+.honeytoken-modal .modal-header {
     padding: 20px 25px 15px;
     border-bottom: 1px solid #e2e8f0;
     background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
@@ -1115,17 +1131,17 @@ body {
     border-radius: 15px 15px 0 0;
 }
 
-.modal-header h3 {
+.honeytoken-modal .modal-header h3 {
     margin: 0;
     font-size: 1.3rem;
     font-weight: 600;
 }
 
-.modal-body {
+.honeytoken-modal .modal-body {
     padding: 25px;
 }
 
-.modal-footer {
+.honeytoken-modal .modal-footer {
     padding: 20px 25px;
     border-top: 1px solid #e2e8f0;
     display: flex;
